@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { SLOT_INTERVAL_MINUTES, WORKING_HOURS } from "./constants";
+import { SLOT_INTERVAL_MINUTES, WORKING_HOURS, type HoursMap } from "./constants";
 
 /** Tailwind-aware className combiner. */
 export function cn(...inputs: ClassValue[]) {
@@ -32,9 +32,16 @@ export function formatTime12h(time: string): string {
 /**
  * Generate 30-min booking start slots for a given weekday, honoring working
  * hours. The last slot leaves room for a 2-hour dining window before close.
+ * `hoursMap` defaults to the hardcoded fallback but callers should pass the
+ * database-backed map from getWorkingHours() (see lib/hours.ts) wherever
+ * possible, so admin-edited hours actually take effect.
  */
-export function generateSlotsForDay(dayOfWeek: number, durationMinutes = 120): string[] {
-  const hours = WORKING_HOURS[dayOfWeek];
+export function generateSlotsForDay(
+  dayOfWeek: number,
+  durationMinutes = 120,
+  hoursMap: HoursMap = WORKING_HOURS
+): string[] {
+  const hours = hoursMap[dayOfWeek];
   if (!hours) return [];
   const slots: string[] = [];
   const lastStart = hours.close - durationMinutes;

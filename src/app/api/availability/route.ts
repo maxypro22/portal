@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { apiOk, apiError, handleRouteError } from "@/lib/api";
 import { getUnavailableTableIds } from "@/lib/booking";
+import { getWorkingHours } from "@/lib/hours";
 import { DEFAULT_DURATION_MINUTES } from "@/lib/constants";
 import {
   fromDateKey,
@@ -16,7 +17,8 @@ export const dynamic = "force-dynamic";
  * GET /api/availability?locationId=&date=YYYY-MM-DD[&partySize=][&tableId=][&timeSlot=HH:mm]
  *
  * Returns:
- *  - slots:               generated 30-min start slots for that weekday,
+ *  - slots:               generated 30-min start slots for that weekday
+ *                         (honoring the admin-configured working hours),
  *                         each { time, past, available }
  *                         - with `partySize`: available if ANY active table
  *                           seating that many guests is free (tables are
@@ -48,17 +50,17 @@ export async function GET(req: Request) {
 
     const day = fromDateKey(date);
     const dayOfWeek = day.getDay();
-    const slotTimes = generateSlotsForDay(dayOfWeek, DEFAULT_DURATION_MINUTES);
 
     // "past" detection for today's slots
     const now = new Date();
     const isToday = toDateKey(now) === date;
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-    // These three lookups are independent of each other — run them
-    // concurrently instead of one-after-another so total latency is the
-    // slowest single query, not the sum of all three.
-    const [candidates, dayBookings, unavailableSet] = await Promise.all([
+    // These lookups are independent of each other — run them concurrently
+    // instead of one-after-another so total latency is the slowest single
+    // query, not the sum of all of them.
+    const [hoursMap, candidates, dayBookings, unavailableSet] = await Promise.all([
+      getWorkingHours(),
       // Candidate tables when checking by party size: any active table at
       // this location that seats at least that many guests.
       partySize
@@ -88,6 +90,7 @@ export async function GET(req: Request) {
         : Promise.resolve(null),
     ]);
 
+    const slotTimes = generateSlotsForDay(dayOfWeek, DEFAULT_DURATION_MINUTES, hoursMap);
     const candidateTableIds = candidates ? new Set(candidates.map((t) => t.id)) : null;
 
     const slots = slotTimes.map((time) => {

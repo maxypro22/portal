@@ -2,7 +2,7 @@
 
 A production-quality restaurant table-booking portal for **Steak Town** (steaktown.qa),
 a luxury steakhouse in Doha, Qatar. Features a public multi-step booking wizard and a
-protected admin dashboard for managing reservations, clients, tables, and locations.
+protected admin dashboard for managing reservations, clients, working hours, and locations.
 
 Built with **Next.js 14 (App Router)** · **TypeScript** · **Tailwind CSS** ·
 **Prisma** · **Supabase (Postgres)** · **NextAuth** — deployable to **Vercel**.
@@ -22,8 +22,9 @@ app-level check) so two simultaneous requests can't be handed the same table/slo
 
 **Admin dashboard** (`/admin`) — branded login, overview (stat cards + 14-day chart +
 today's timeline), bookings management (search / filter / paginate + status actions),
-**clients** directory (name · phone · email), a live floor view (visual floor plan), and
-full CRUD for tables (click-to-place) and locations.
+**clients** directory (name · phone · email), **working hours** editor (per-day open/close
+times, or close a day entirely — drives the public booking flow's available time slots),
+and location management. Shares the same light/dark theme toggle as the public site.
 
 ---
 
@@ -46,6 +47,11 @@ Fill in `.env` (see [Environment Variables](#-environment-variables) below).
 npm install
 npm run db:setup     # = prisma db push  +  seed (admin + demo data)
 ```
+`db:setup` already creates the `WorkingHours` table via `prisma db push`. On an
+**existing** database (one you set up before this feature existed), either re-run
+`npm run db:push`, or run `prisma/add-working-hours.sql` once in the Supabase SQL Editor —
+it also seeds the 7 rows with the current hardcoded defaults, so nothing changes until
+you edit a day from `/admin/hours`.
 
 ### 4. Run
 ```bash
@@ -142,22 +148,25 @@ git push -u origin main
 
 ```
 prisma/  schema.prisma (Postgres) · seed.ts (idempotent, env-driven admin)
-        · supabase-init.sql / seed-locations.sql / fix-admin-login.sql (manual SQL alternatives)
+        · supabase-init.sql / seed-locations.sql / fix-admin-login.sql / add-working-hours.sql
+          (manual SQL alternatives — see comments in each file)
 src/
   app/(site)/     public site + booking wizard
-  app/admin/      login + protected dashboard (overview, bookings, clients, floor, tables, locations)
-  app/api/        auth · locations · tables · availability · bookings · clients
-  components/     layout (Header/Footer) · booking (FloorPlan, WizardProgress, BookingWizard)
+  app/admin/      login + protected dashboard (overview, bookings, clients, working hours, locations)
+  app/api/        auth · locations · availability · bookings · clients · working-hours
+  components/     layout (Header/Footer) · booking (WizardProgress, BookingWizard)
                   · admin · ui (incl. ThemeToggle)
   lib/            prisma · auth (bootstrap) · api · booking (auto-assign, transactions)
-                  · validations · utils · constants
+                  · hours (DB-backed working hours) · validations · utils · constants
   middleware.ts   protects /admin
 ```
 
 ---
 
 ## 🧠 Booking Rules
-- Working hours: Sat–Wed 12pm–12am · Thu 12pm–1am · Fri 1pm–1am.
+- Working hours are **database-backed and admin-editable** (`/admin/hours` → `WorkingHours`
+  table, `src/lib/hours.ts`) — defaults to Sat–Wed 12pm–12am · Thu 12pm–1am · Fri 1pm–1am
+  until changed. Any day can be closed entirely.
 - Each booking holds a table for **120 minutes**; slots are 30-min intervals.
 - Guests pick a location, party size (1–15), date, and time only — no table selection.
   The smallest available table that fits the party is auto-assigned at booking time

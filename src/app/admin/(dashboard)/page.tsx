@@ -129,8 +129,8 @@ export default async function OverviewPage() {
         {/* Chart */}
         <div className="card p-6 lg:col-span-3">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-serif text-lg font-semibold text-cream">Bookings — Last 14 Days</h2>
-            <span className="text-xs text-cream-dim">Active reservations</span>
+            <h2 className="font-serif text-lg font-semibold text-content">Bookings — Last 14 Days</h2>
+            <span className="text-xs text-content-dim">Active reservations</span>
           </div>
           <AdminChart data={chartData} />
         </div>
@@ -139,7 +139,7 @@ export default async function OverviewPage() {
         <div className="card p-6 lg:col-span-2">
           <div className="mb-4 flex items-center gap-2">
             <Clock className="h-4 w-4 text-gold" />
-            <h2 className="font-serif text-lg font-semibold text-cream">Today&apos;s Timeline</h2>
+            <h2 className="font-serif text-lg font-semibold text-content">Today&apos;s Timeline</h2>
           </div>
 
           {todaysTimeline.length === 0 ? (
@@ -149,14 +149,14 @@ export default async function OverviewPage() {
               {todaysTimeline.map((b) => (
                 <li
                   key={b.id}
-                  className="flex items-center gap-3 rounded-xl border border-brand-600/40 bg-brand-950/30 px-3 py-2.5"
+                  className="flex items-center gap-3 rounded-xl border border-surface-border bg-surface-sunken/30 px-3 py-2.5"
                 >
                   <span className="grid h-11 w-14 shrink-0 place-items-center rounded-lg bg-gold/10 text-xs font-semibold text-gold">
                     {formatTime12h(b.timeSlot)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-cream">{b.guestName}</p>
-                    <p className="truncate text-xs text-cream-dim">
+                    <p className="truncate text-sm font-medium text-content">{b.guestName}</p>
+                    <p className="truncate text-xs text-content-dim">
                       Table {b.table.number} · {b.partySize} guests
                     </p>
                   </div>

@@ -103,3 +103,18 @@ model Booking {
   @@index([tableId, date])
   @@index([status])
 }
+
+// -----------------------------------------------------------------------------
+// Weekly working hours — one row per day of week (0=Sunday .. 6=Saturday).
+// Editable from /admin/hours. openMinutes/closeMinutes are minutes from
+// midnight; closeMinutes may exceed 1440 for after-midnight closing
+// (e.g. 1am = 25:00 = 1500). isOpen=false closes the restaurant that day.
+// -----------------------------------------------------------------------------
+model WorkingHours {
+  id           String   @id @default(cuid())
+  dayOfWeek    Int      @unique // 0=Sun .. 6=Sat
+  isOpen       Boolean  @default(true)
+  openMinutes  Int      @default(720) // 12:00 PM
+  closeMinutes Int      @default(1440) // 12:00 AM
+  updatedAt    DateTime @updatedAt
+}

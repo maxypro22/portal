@@ -64,13 +64,19 @@ export const MAX_PARTY_SIZE = 15;
 /** How far ahead guests can book — the calendar disables dates beyond this. */
 export const MAX_ADVANCE_BOOKING_DAYS = 90;
 
+export type DayHours = { open: number; close: number };
+export type HoursMap = Record<number, DayHours>;
+
 /**
- * Working hours per day of week (0 = Sunday … 6 = Saturday).
- * Mirrors steaktown.qa: Sat–Wed 12pm–12am, Thu 12pm–1am, Fri 1pm–1am.
- * `open`/`close` are minutes from midnight. `close` may exceed 1440 for
- * after-midnight closing (e.g. 1am = 25:00 = 1500).
+ * Default working hours per day of week (0 = Sunday … 6 = Saturday) — used
+ * as a fallback until the WorkingHours DB table is migrated/seeded, and as
+ * the seed values for that migration (prisma/add-working-hours.sql). Once
+ * seeded, the database (editable from /admin/hours) is authoritative — see
+ * getWorkingHours() in lib/hours.ts. `open`/`close` are minutes from
+ * midnight; `close` may exceed 1440 for after-midnight closing (e.g. 1am =
+ * 25:00 = 1500).
  */
-export const WORKING_HOURS: Record<number, { open: number; close: number }> = {
+export const WORKING_HOURS: HoursMap = {
   0: { open: 12 * 60, close: 24 * 60 }, // Sun  12pm–12am
   1: { open: 12 * 60, close: 24 * 60 }, // Mon  12pm–12am
   2: { open: 12 * 60, close: 24 * 60 }, // Tue  12pm–12am

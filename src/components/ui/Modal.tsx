@@ -46,19 +46,19 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "relative z-10 my-8 w-full animate-scale-in rounded-2xl border border-brand-600/50 bg-brand-900 shadow-card-hover",
+          "relative z-10 my-8 w-full animate-scale-in rounded-2xl border border-surface-border bg-surface-raised shadow-card-hover",
           width
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-brand-600/40 px-6 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-surface-border px-6 py-4">
           <div>
-            <h3 className="font-serif text-xl font-semibold text-cream">{title}</h3>
-            {description && <p className="mt-0.5 text-sm text-cream-dim">{description}</p>}
+            <h3 className="font-serif text-xl font-semibold text-content">{title}</h3>
+            {description && <p className="mt-0.5 text-sm text-content-dim">{description}</p>}
           </div>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-cream-dim transition-colors hover:bg-brand-800 hover:text-cream"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-content-dim transition-colors hover:bg-surface-sunken hover:text-content"
           >
             <X className="h-5 w-5" />
           </button>
@@ -67,7 +67,7 @@ export function Modal({
         <div className="px-6 py-5">{children}</div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-3 border-t border-brand-600/40 px-6 py-4">
+          <div className="flex items-center justify-end gap-3 border-t border-surface-border px-6 py-4">
             {footer}
           </div>
         )}
@@ -123,7 +123,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p className="text-sm text-cream-muted">{message}</p>
+      <p className="text-sm text-content-muted">{message}</p>
     </Modal>
   );
 }

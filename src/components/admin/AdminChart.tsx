@@ -9,12 +9,24 @@ import {
   YAxis,
   Cell,
 } from "recharts";
+import { useTheme } from "@/components/ThemeProvider";
 
 export type ChartPoint = { label: string; count: number; isToday?: boolean };
 
-/** 14-day bookings-per-day bar chart. */
+/**
+ * 14-day bookings-per-day bar chart. Recharts needs literal color values
+ * (SVG props, not Tailwind classes), so it can't pick up the CSS-variable
+ * theme automatically — colors are branched here based on the current theme.
+ */
 export function AdminChart({ data }: { data: ChartPoint[] }) {
+  const { theme } = useTheme();
+  const isLight = theme === "light";
   const max = Math.max(1, ...data.map((d) => d.count));
+
+  const tickColor = isLight ? "#6b7280" : "#a99f92";
+  const axisLineColor = isLight ? "#e0e3eb" : "#4a3c3c";
+  const tooltipBg = isLight ? "#ffffff" : "#241d1d";
+  const tooltipText = isLight ? "#1c1c20" : "#f5efe6";
 
   return (
     <div className="h-64 w-full">
@@ -22,15 +34,15 @@ export function AdminChart({ data }: { data: ChartPoint[] }) {
         <BarChart data={data} margin={{ top: 10, right: 8, left: -20, bottom: 0 }}>
           <XAxis
             dataKey="label"
-            tick={{ fill: "#a99f92", fontSize: 11 }}
-            axisLine={{ stroke: "#4a3c3c" }}
+            tick={{ fill: tickColor, fontSize: 11 }}
+            axisLine={{ stroke: axisLineColor }}
             tickLine={false}
             interval={0}
           />
           <YAxis
             allowDecimals={false}
             domain={[0, max + 1]}
-            tick={{ fill: "#a99f92", fontSize: 11 }}
+            tick={{ fill: tickColor, fontSize: 11 }}
             axisLine={false}
             tickLine={false}
             width={40}
@@ -38,10 +50,10 @@ export function AdminChart({ data }: { data: ChartPoint[] }) {
           <Tooltip
             cursor={{ fill: "rgba(201,162,39,0.08)" }}
             contentStyle={{
-              background: "#241d1d",
+              background: tooltipBg,
               border: "1px solid rgba(201,162,39,0.35)",
               borderRadius: 12,
-              color: "#f5efe6",
+              color: tooltipText,
               fontSize: 13,
             }}
             labelStyle={{ color: "#c9a227", fontWeight: 600 }}

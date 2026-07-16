@@ -13,8 +13,8 @@ export function PageHeader({
   return (
     <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="font-serif text-3xl font-bold text-cream">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-cream-dim">{subtitle}</p>}
+        <h1 className="font-serif text-3xl font-bold text-content">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-content-dim">{subtitle}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -46,9 +46,9 @@ export function StatCard({
     <div className="card p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-cream-dim">{label}</p>
-          <p className="mt-2 font-serif text-3xl font-bold text-cream">{value}</p>
-          {hint && <p className="mt-1 text-xs text-cream-dim/70">{hint}</p>}
+          <p className="text-xs font-semibold uppercase tracking-wide text-content-dim">{label}</p>
+          <p className="mt-2 font-serif text-3xl font-bold text-content">{value}</p>
+          {hint && <p className="mt-1 text-xs text-content-dim/70">{hint}</p>}
         </div>
         {icon && (
           <span className={cn("grid h-11 w-11 place-items-center rounded-xl border", accentClass)}>

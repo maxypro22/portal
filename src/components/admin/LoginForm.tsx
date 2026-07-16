@@ -60,7 +60,7 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <label className="block">
-        <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-cream-muted">
+        <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-content-muted">
           <Mail className="h-4 w-4 text-gold/70" /> Email
         </span>
         <input
@@ -76,7 +76,7 @@ export function LoginForm() {
       </label>
 
       <label className="block">
-        <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-cream-muted">
+        <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-content-muted">
           <Lock className="h-4 w-4 text-gold/70" /> Password
         </span>
         <div className="relative">
@@ -91,7 +91,7 @@ export function LoginForm() {
             type="button"
             onClick={() => setShowPw((v) => !v)}
             aria-label={showPw ? "Hide password" : "Show password"}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-cream-dim hover:text-gold"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-content-dim hover:text-gold"
           >
             {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
@@ -115,7 +115,7 @@ export function LoginForm() {
         )}
       </button>
 
-      <p className="rounded-lg border border-brand-600/40 bg-brand-950/40 px-3 py-2.5 text-center text-xs text-cream-dim">
+      <p className="rounded-lg border border-surface-border bg-surface-sunken/40 px-3 py-2.5 text-center text-xs text-content-dim">
         Demo credentials · <span className="text-gold">admin@steaktown.qa</span> / Admin@1234
       </p>
     </form>

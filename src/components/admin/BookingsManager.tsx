@@ -134,7 +134,7 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
       <div className="card mb-6 p-4">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cream-dim" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-content-dim" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -176,7 +176,7 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
               <button
                 onClick={clearFilters}
                 title="Clear filters"
-                className="grid w-11 shrink-0 place-items-center rounded-xl border border-brand-600/60 text-cream-dim hover:border-gold hover:text-gold"
+                className="grid w-11 shrink-0 place-items-center rounded-xl border border-surface-border text-content-dim hover:border-gold hover:text-gold"
               >
                 <RotateCcw className="h-4 w-4" />
               </button>
@@ -215,7 +215,7 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-left text-sm">
               <thead>
-                <tr className="border-b border-brand-600/40 text-xs uppercase tracking-wide text-cream-dim">
+                <tr className="border-b border-surface-border text-xs uppercase tracking-wide text-content-dim">
                   <th className="px-4 py-3 font-semibold">Reference</th>
                   <th className="px-4 py-3 font-semibold">Guest</th>
                   <th className="px-4 py-3 font-semibold">Location</th>
@@ -228,26 +228,26 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
               </thead>
               <tbody className={cn("divide-y divide-brand-600/30", loading && "opacity-50")}>
                 {data?.bookings.map((b) => (
-                  <tr key={b.id} className="transition-colors hover:bg-brand-950/30">
+                  <tr key={b.id} className="transition-colors hover:bg-surface-sunken/30">
                     <td className="px-4 py-3">
                       <span className="font-mono text-xs font-semibold text-gold">
                         {b.reference}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-cream">{b.guestName}</p>
-                      <p className="text-xs text-cream-dim">{b.guestPhone}</p>
+                      <p className="font-medium text-content">{b.guestName}</p>
+                      <p className="text-xs text-content-dim">{b.guestPhone}</p>
                     </td>
-                    <td className="px-4 py-3 text-cream-muted">{b.location.name}</td>
-                    <td className="px-4 py-3 text-cream-muted">
+                    <td className="px-4 py-3 text-content-muted">{b.location.name}</td>
+                    <td className="px-4 py-3 text-content-muted">
                       #{b.table.number}
-                      <span className="ml-1 text-xs text-cream-dim">({b.table.section})</span>
+                      <span className="ml-1 text-xs text-content-dim">({b.table.section})</span>
                     </td>
-                    <td className="px-4 py-3 text-cream-muted">
+                    <td className="px-4 py-3 text-content-muted">
                       <p>{new Date(b.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</p>
-                      <p className="text-xs text-cream-dim">{formatTime12h(b.timeSlot)}</p>
+                      <p className="text-xs text-content-dim">{formatTime12h(b.timeSlot)}</p>
                     </td>
-                    <td className="px-4 py-3 text-cream-muted">{b.partySize}</td>
+                    <td className="px-4 py-3 text-content-muted">{b.partySize}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={b.status} />
                     </td>
@@ -271,7 +271,7 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
 
         {/* Pagination */}
         {data && data.bookings.length > 0 && (
-          <div className="flex items-center justify-between border-t border-brand-600/40 px-4 py-3 text-sm text-cream-dim">
+          <div className="flex items-center justify-between border-t border-surface-border px-4 py-3 text-sm text-content-dim">
             <span>
               {(data.pagination.page - 1) * data.pagination.pageSize + 1}–
               {Math.min(
@@ -284,7 +284,7 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={data.pagination.page <= 1}
-                className="grid h-9 w-9 place-items-center rounded-lg border border-brand-600/60 disabled:opacity-40 hover:border-gold hover:text-gold"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-surface-border disabled:opacity-40 hover:border-gold hover:text-gold"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -294,7 +294,7 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
               <button
                 onClick={() => setPage((p) => Math.min(data.pagination.totalPages, p + 1))}
                 disabled={data.pagination.page >= data.pagination.totalPages}
-                className="grid h-9 w-9 place-items-center rounded-lg border border-brand-600/60 disabled:opacity-40 hover:border-gold hover:text-gold"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-surface-border disabled:opacity-40 hover:border-gold hover:text-gold"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -369,7 +369,7 @@ function RowActions({
         onClick={() => setOpen((v) => !v)}
         disabled={busy}
         aria-label="Booking actions"
-        className="grid h-9 w-9 place-items-center rounded-lg border border-brand-600/60 text-cream-muted transition-colors hover:border-gold hover:text-gold disabled:opacity-40"
+        className="grid h-9 w-9 place-items-center rounded-lg border border-surface-border text-content-muted transition-colors hover:border-gold hover:text-gold disabled:opacity-40"
       >
         <MoreVertical className="h-4 w-4" />
       </button>
@@ -377,7 +377,7 @@ function RowActions({
       {open && (
         <>
           <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-xl border border-brand-600/60 bg-brand-900 py-1 shadow-card-hover">
+          <div className="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-xl border border-surface-border bg-surface-raised py-1 shadow-card-hover">
             {items.map((it) => (
               <button
                 key={it.label}
@@ -389,7 +389,7 @@ function RowActions({
                   "flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm transition-colors",
                   it.danger
                     ? "text-status-cancelled hover:bg-status-cancelled/10"
-                    : "text-cream-muted hover:bg-brand-800 hover:text-cream"
+                    : "text-content-muted hover:bg-surface-sunken hover:text-content"
                 )}
               >
                 {it.icon}
@@ -484,7 +484,7 @@ function EditBookingModal({
           onChange={(v) => set("partySize", Number(v) as never)}
         />
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-cream-muted">Status</span>
+          <span className="mb-1.5 block text-sm font-medium text-content-muted">Status</span>
           <select
             value={form.status}
             onChange={(e) => set("status", e.target.value as BookingStatus)}
@@ -509,7 +509,7 @@ function EditBookingModal({
           onChange={(v) => set("timeSlot", v)}
         />
         <div className="sm:col-span-2">
-          <span className="mb-1.5 block text-sm font-medium text-cream-muted">Special Requests</span>
+          <span className="mb-1.5 block text-sm font-medium text-content-muted">Special Requests</span>
           <textarea
             value={form.specialRequests}
             onChange={(e) => set("specialRequests", e.target.value)}
@@ -518,7 +518,7 @@ function EditBookingModal({
           />
         </div>
       </div>
-      <p className="mt-4 text-xs text-cream-dim/70">
+      <p className="mt-4 text-xs text-content-dim/70">
         Changing table, date, or time re-checks availability to prevent double-booking.
       </p>
     </Modal>
@@ -538,7 +538,7 @@ function LabeledInput({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-cream-muted">{label}</span>
+      <span className="mb-1.5 block text-sm font-medium text-content-muted">{label}</span>
       <input
         type={type}
         value={value}

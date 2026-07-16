@@ -16,7 +16,7 @@ export default async function AdminDashboardLayout({
   if (!session?.user) redirect("/admin/login");
 
   return (
-    <div className="flex min-h-screen bg-brand-800 lg:flex-row flex-col">
+    <div className="flex min-h-screen bg-surface-bg lg:flex-row flex-col">
       <Sidebar userName={session.user.name} />
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
     </div>

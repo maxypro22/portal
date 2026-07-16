@@ -67,7 +67,7 @@ export function ClientsManager() {
       <div className="card mb-6 p-4">
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cream-dim" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-content-dim" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -79,7 +79,7 @@ export function ClientsManager() {
             <button
               onClick={() => setQ("")}
               title="Clear search"
-              className="grid w-11 shrink-0 place-items-center rounded-xl border border-brand-600/60 text-cream-dim hover:border-gold hover:text-gold"
+              className="grid w-11 shrink-0 place-items-center rounded-xl border border-surface-border text-content-dim hover:border-gold hover:text-gold"
             >
               <RotateCcw className="h-4 w-4" />
             </button>
@@ -106,7 +106,7 @@ export function ClientsManager() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
-                <tr className="border-b border-brand-600/40 text-xs uppercase tracking-wide text-cream-dim">
+                <tr className="border-b border-surface-border text-xs uppercase tracking-wide text-content-dim">
                   <th className="px-4 py-3 font-semibold">Name</th>
                   <th className="px-4 py-3 font-semibold">Phone Number</th>
                   <th className="px-4 py-3 font-semibold">Email</th>
@@ -116,19 +116,19 @@ export function ClientsManager() {
               </thead>
               <tbody className="divide-y divide-brand-600/30">
                 {data?.clients.map((c) => (
-                  <tr key={c.email} className="transition-colors hover:bg-brand-950/30">
+                  <tr key={c.email} className="transition-colors hover:bg-surface-sunken/30">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold/15 font-serif text-sm font-semibold text-gold">
                           {c.name.trim().charAt(0).toUpperCase() || "?"}
                         </span>
-                        <span className="font-medium text-cream">{c.name}</span>
+                        <span className="font-medium text-content">{c.name}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <a
                         href={`tel:${c.phone.replace(/\s/g, "")}`}
-                        className="flex items-center gap-2 text-cream-muted transition-colors hover:text-gold"
+                        className="flex items-center gap-2 text-content-muted transition-colors hover:text-gold"
                       >
                         <Phone className="h-3.5 w-3.5 text-gold/70" />
                         {c.phone}
@@ -137,19 +137,19 @@ export function ClientsManager() {
                     <td className="px-4 py-3">
                       <a
                         href={`mailto:${c.email}`}
-                        className="flex items-center gap-2 text-cream-muted transition-colors hover:text-gold"
+                        className="flex items-center gap-2 text-content-muted transition-colors hover:text-gold"
                       >
                         <Mail className="h-3.5 w-3.5 text-gold/70" />
                         {c.email}
                       </a>
                     </td>
-                    <td className="px-4 py-3 text-cream-muted">
+                    <td className="px-4 py-3 text-content-muted">
                       {c.bookings}
-                      <span className="ml-1 text-xs text-cream-dim">
+                      <span className="ml-1 text-xs text-content-dim">
                         ({c.totalGuests} guests)
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-cream-muted">
+                    <td className="px-4 py-3 text-content-muted">
                       {new Date(c.lastVisit).toLocaleDateString("en-GB", {
                         day: "2-digit",
                         month: "short",
@@ -165,7 +165,7 @@ export function ClientsManager() {
 
         {/* Pagination */}
         {data && data.clients.length > 0 && (
-          <div className="flex items-center justify-between border-t border-brand-600/40 px-4 py-3 text-sm text-cream-dim">
+          <div className="flex items-center justify-between border-t border-surface-border px-4 py-3 text-sm text-content-dim">
             <span>
               {(data.pagination.page - 1) * data.pagination.pageSize + 1}–
               {Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.total)} of{" "}
@@ -175,7 +175,7 @@ export function ClientsManager() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={data.pagination.page <= 1}
-                className="grid h-9 w-9 place-items-center rounded-lg border border-brand-600/60 hover:border-gold hover:text-gold disabled:opacity-40"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-surface-border hover:border-gold hover:text-gold disabled:opacity-40"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -185,7 +185,7 @@ export function ClientsManager() {
               <button
                 onClick={() => setPage((p) => Math.min(data.pagination.totalPages, p + 1))}
                 disabled={data.pagination.page >= data.pagination.totalPages}
-                className="grid h-9 w-9 place-items-center rounded-lg border border-brand-600/60 hover:border-gold hover:text-gold disabled:opacity-40"
+                className="grid h-9 w-9 place-items-center rounded-lg border border-surface-border hover:border-gold hover:text-gold disabled:opacity-40"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>

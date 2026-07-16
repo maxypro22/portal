@@ -85,7 +85,7 @@ export function LocationsManager() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-serif text-lg font-semibold text-cream">{loc.name}</h3>
+                    <h3 className="font-serif text-lg font-semibold text-content">{loc.name}</h3>
                     <span
                       className={cn(
                         "rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase",
@@ -97,33 +97,33 @@ export function LocationsManager() {
                       {loc.isActive ? "Active" : "Inactive"}
                     </span>
                   </div>
-                  <p className="mt-2 flex items-start gap-2 text-sm text-cream-dim">
+                  <p className="mt-2 flex items-start gap-2 text-sm text-content-dim">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gold/70" />
                     {loc.address}
                   </p>
-                  <p className="mt-1.5 flex items-center gap-2 text-sm text-cream-dim">
+                  <p className="mt-1.5 flex items-center gap-2 text-sm text-content-dim">
                     <Phone className="h-4 w-4 text-gold/70" />
                     {loc.phone}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-brand-600/40 pt-4">
-                <span className="flex items-center gap-2 text-xs text-cream-dim">
+              <div className="mt-4 flex items-center justify-between border-t border-surface-border pt-4">
+                <span className="flex items-center gap-2 text-xs text-content-dim">
                   <Armchair className="h-4 w-4 text-gold/70" />
                   {loc._count?.tables ?? 0} tables · {loc._count?.bookings ?? 0} bookings
                 </span>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setEditing(loc)}
-                    className="grid h-9 w-9 place-items-center rounded-lg border border-brand-600/60 text-cream-muted hover:border-gold hover:text-gold"
+                    className="grid h-9 w-9 place-items-center rounded-lg border border-surface-border text-content-muted hover:border-gold hover:text-gold"
                     aria-label="Edit"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => setDeleting(loc)}
-                    className="grid h-9 w-9 place-items-center rounded-lg border border-brand-600/60 text-cream-muted hover:border-status-cancelled hover:text-status-cancelled"
+                    className="grid h-9 w-9 place-items-center rounded-lg border border-surface-border text-content-muted hover:border-status-cancelled hover:text-status-cancelled"
                     aria-label="Delete"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -238,7 +238,7 @@ function LocationForm({
             onClick={() => set("isActive", !form.isActive)}
             className={cn(
               "relative h-6 w-11 rounded-full transition-colors",
-              form.isActive ? "bg-gold" : "bg-brand-600"
+              form.isActive ? "bg-gold" : "bg-surface-border-strong"
             )}
           >
             <span
@@ -248,7 +248,7 @@ function LocationForm({
               )}
             />
           </button>
-          <span className="flex items-center gap-1.5 text-sm text-cream-muted">
+          <span className="flex items-center gap-1.5 text-sm text-content-muted">
             <Power className="h-4 w-4 text-gold/70" />
             {form.isActive ? "Active — visible to guests" : "Inactive — hidden"}
           </span>
@@ -261,7 +261,7 @@ function LocationForm({
 function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-cream-muted">{label}</span>
+      <span className="mb-1.5 block text-sm font-medium text-content-muted">{label}</span>
       {children}
     </label>
   );

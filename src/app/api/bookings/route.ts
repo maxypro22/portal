@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { apiOk, apiError, handleRouteError, requireAdmin } from "@/lib/api";
 import { createBookingSchema } from "@/lib/validations";
 import { BookingRequestError, pickAvailableTable, runSerializable } from "@/lib/booking";
+import { getWorkingHours } from "@/lib/hours";
 import { DEFAULT_DURATION_MINUTES } from "@/lib/constants";
 import {
   fromDateKey,
@@ -80,9 +81,9 @@ export async function POST(req: Request) {
     const body = await req.json();
     const input = createBookingSchema.parse(body);
 
-    // --- Checks that don't need the database: fail fast, no transaction. ---
     const day = fromDateKey(input.date);
-    const validSlots = generateSlotsForDay(day.getDay(), DEFAULT_DURATION_MINUTES);
+    const hoursMap = await getWorkingHours();
+    const validSlots = generateSlotsForDay(day.getDay(), DEFAULT_DURATION_MINUTES, hoursMap);
     if (!validSlots.includes(input.timeSlot)) {
       return apiError("Selected time is outside our working hours.", 400);
     }
