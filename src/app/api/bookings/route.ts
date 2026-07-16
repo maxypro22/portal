@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { apiOk, apiError, handleRouteError, requireAdmin } from "@/lib/api";
 import { createBookingSchema } from "@/lib/validations";
-import { BookingRequestError, isSlotAvailable, runSerializable } from "@/lib/booking";
+import { BookingRequestError, pickAvailableTable, runSerializable } from "@/lib/booking";
 import { DEFAULT_DURATION_MINUTES } from "@/lib/constants";
 import {
   fromDateKey,
@@ -70,12 +70,10 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/bookings — PUBLIC create.
- * Validates capacity, working hours, past-time, and prevents double-booking.
- *
- * The table lookup, availability check, and insert all run inside a single
- * Serializable transaction (see runSerializable) so two guests booking the
- * same table/slot at the exact same moment can't both succeed — Postgres
- * itself rejects one of the conflicting transactions, which we retry.
+ * Guests choose location, party size, date, and time only — a table is
+ * auto-assigned (smallest fitting, available table) inside the same
+ * Serializable transaction that creates the booking, so two guests
+ * requesting the same slot can't both be handed the same table.
  */
 export async function POST(req: Request) {
   try {
@@ -103,44 +101,25 @@ export async function POST(req: Request) {
     const year = day.getFullYear();
 
     const booking = await runSerializable(async (tx) => {
-      // 1) Table must exist, be active, and belong to the location.
-      const table = await tx.table.findUnique({ where: { id: input.tableId } });
-      if (!table || table.locationId !== input.locationId) {
-        throw new BookingRequestError("Selected table is not valid for this location.", 400);
-      }
-      if (!table.isActive) {
-        throw new BookingRequestError("Selected table is not available for booking.", 400);
-      }
-
-      // 2) Party size must fit the table.
-      if (input.partySize > table.capacity) {
-        throw new BookingRequestError(
-          `This table seats ${table.capacity}. Please choose a larger table.`,
-          400
-        );
-      }
-
-      // 3) Double-booking guard (2-hour overlap) — checked and written inside
-      //    the same transaction, closing the race window a plain read+write
-      //    would have under concurrent requests.
-      const free = await isSlotAvailable(
+      // 1) Auto-assign the best-fit, available table for this party/slot.
+      const table = await pickAvailableTable(
         {
           locationId: input.locationId,
-          tableId: input.tableId,
+          partySize: input.partySize,
           dateKey: input.date,
           timeSlot: input.timeSlot,
           durationMinutes: DEFAULT_DURATION_MINUTES,
         },
         tx
       );
-      if (!free) {
+      if (!table) {
         throw new BookingRequestError(
-          "Sorry, that table has just been booked for this time. Please pick another slot.",
+          "Sorry, no table is available for that party size at this time. Please try another time or date.",
           409
         );
       }
 
-      // 4) Create with a unique reference (retry on rare collision).
+      // 2) Create with a unique reference (retry on rare collision).
       for (let attempt = 0; attempt < 5; attempt++) {
         const reference = generateReference(year);
         try {
@@ -148,7 +127,7 @@ export async function POST(req: Request) {
             data: {
               reference,
               locationId: input.locationId,
-              tableId: input.tableId,
+              tableId: table.id,
               guestName: input.guestName,
               guestPhone: input.guestPhone,
               guestEmail: input.guestEmail,

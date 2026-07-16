@@ -16,10 +16,10 @@ export default function BookPage() {
           Reservations
           <span className="h-px w-6 bg-gold/60" />
         </span>
-        <h1 className="mt-4 font-serif text-4xl font-bold text-cream sm:text-5xl">
+        <h1 className="mt-4 font-serif text-4xl font-bold text-content sm:text-5xl">
           Book Your Table
         </h1>
-        <p className="mx-auto mt-3 max-w-xl text-cream-muted">
+        <p className="mx-auto mt-3 max-w-xl text-content-muted">
           A few simple steps to secure your evening at Steak Town.
         </p>
       </div>

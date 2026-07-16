@@ -13,13 +13,19 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/availability?locationId=&date=YYYY-MM-DD[&tableId=][&timeSlot=HH:mm]
+ * GET /api/availability?locationId=&date=YYYY-MM-DD[&partySize=][&tableId=][&timeSlot=HH:mm]
  *
  * Returns:
  *  - slots:               generated 30-min start slots for that weekday,
  *                         each { time, past, available }
- *                         (`available` = free for `tableId` if provided, else true)
- *  - unavailableTableIds: table ids blocked for `timeSlot` (if provided)
+ *                         - with `partySize`: available if ANY active table
+ *                           seating that many guests is free (tables are
+ *                           auto-assigned at booking time, not chosen by
+ *                           the guest)
+ *                         - with `tableId`: available for that specific table
+ *                         - with neither: always true (informational only)
+ *  - unavailableTableIds: table ids blocked for `timeSlot` (if provided) —
+ *                         used by the admin live floor view
  *
  * Availability honours the 2-hour dining window overlap rule.
  */
@@ -30,6 +36,8 @@ export async function GET(req: Request) {
     const date = searchParams.get("date");
     const tableId = searchParams.get("tableId") ?? undefined;
     const timeSlot = searchParams.get("timeSlot") ?? undefined;
+    const partySizeRaw = searchParams.get("partySize");
+    const partySize = partySizeRaw ? parseInt(partySizeRaw, 10) : undefined;
 
     if (!locationId || !date) {
       return apiError("locationId and date are required", 400);
@@ -47,6 +55,17 @@ export async function GET(req: Request) {
     const isToday = toDateKey(now) === date;
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
+    // Candidate tables when checking by party size: any active table at this
+    // location that seats at least that many guests.
+    let candidateTableIds: Set<string> | null = null;
+    if (partySize) {
+      const candidates = await prisma.table.findMany({
+        where: { locationId, isActive: true, capacity: { gte: partySize } },
+        select: { id: true },
+      });
+      candidateTableIds = new Set(candidates.map((t) => t.id));
+    }
+
     // All active bookings for the day (one query), to compute per-slot availability.
     const dayBookings = await prisma.booking.findMany({
       where: {
@@ -63,15 +82,19 @@ export async function GET(req: Request) {
       const end = start + DEFAULT_DURATION_MINUTES;
       const past = isToday && start <= nowMinutes;
 
-      // If a table is specified, the slot is available only if that table has
-      // no overlapping active booking. Without a table, we report open.
+      const overlapsAt = (bStart: number, bEnd: number) => start < bEnd && bStart < end;
+
       let available = true;
-      if (tableId) {
-        available = !dayBookings.some((b) => {
-          const bStart = timeToMinutes(b.timeSlot);
-          const bEnd = bStart + b.durationMinutes;
-          return start < bEnd && bStart < end;
-        });
+      if (candidateTableIds) {
+        // Available if at least one capacity-fitting table has no overlap.
+        const bookedCandidateIds = new Set(
+          dayBookings
+            .filter((b) => candidateTableIds!.has(b.tableId) && overlapsAt(timeToMinutes(b.timeSlot), timeToMinutes(b.timeSlot) + b.durationMinutes))
+            .map((b) => b.tableId)
+        );
+        available = bookedCandidateIds.size < candidateTableIds.size;
+      } else if (tableId) {
+        available = !dayBookings.some((b) => overlapsAt(timeToMinutes(b.timeSlot), timeToMinutes(b.timeSlot) + b.durationMinutes));
       }
       return { time, past, available: available && !past };
     });

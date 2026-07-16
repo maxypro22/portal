@@ -105,9 +105,9 @@ export function SectionHeading({
           {eyebrow}
         </span>
       )}
-      <h2 className="font-serif text-3xl font-bold text-cream sm:text-4xl">{title}</h2>
+      <h2 className="font-serif text-3xl font-bold text-content sm:text-4xl">{title}</h2>
       {description && (
-        <p className={cn("max-w-2xl text-cream-dim", align === "center" && "mx-auto")}>
+        <p className={cn("max-w-2xl text-content-dim", align === "center" && "mx-auto")}>
           {description}
         </p>
       )}

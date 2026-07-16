@@ -60,7 +60,7 @@ export type TableShape = (typeof TABLE_SHAPES)[number];
 export const DEFAULT_DURATION_MINUTES = 120; // 2-hour dining window
 export const SLOT_INTERVAL_MINUTES = 30;
 export const MIN_PARTY_SIZE = 1;
-export const MAX_PARTY_SIZE = 12;
+export const MAX_PARTY_SIZE = 15;
 /** How far ahead guests can book — the calendar disables dates beyond this. */
 export const MAX_ADVANCE_BOOKING_DAYS = 90;
 

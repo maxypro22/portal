@@ -136,6 +136,46 @@ export async function isSlotAvailable(
 }
 
 /**
+ * Auto-assign the best-fit table for a party: the smallest active table at
+ * the location that seats `partySize` and has no overlapping booking for the
+ * requested window. Smallest-first keeps larger tables/booths free for
+ * bigger parties. Returns null if nothing fits — caller decides how to
+ * report that (see BookingRequestError below).
+ *
+ * Must be called with a transaction's `tx` handle from inside runSerializable
+ * so the pick-and-create is atomic against concurrent requests.
+ */
+export async function pickAvailableTable(
+  params: {
+    locationId: string;
+    partySize: number;
+    dateKey: string;
+    timeSlot: string;
+    durationMinutes?: number;
+  },
+  db: DbClient
+): Promise<{ id: string; number: number; capacity: number; section: string } | null> {
+  const candidates = await db.table.findMany({
+    where: { locationId: params.locationId, isActive: true, capacity: { gte: params.partySize } },
+    orderBy: { capacity: "asc" },
+    select: { id: true, number: true, capacity: true, section: true },
+  });
+  if (candidates.length === 0) return null;
+
+  const unavailable = await getUnavailableTableIds(
+    {
+      locationId: params.locationId,
+      dateKey: params.dateKey,
+      timeSlot: params.timeSlot,
+      durationMinutes: params.durationMinutes,
+    },
+    db
+  );
+
+  return candidates.find((t) => !unavailable.has(t.id)) ?? null;
+}
+
+/**
  * Thrown for expected, user-facing booking failures (e.g. table too small,
  * slot no longer free) so route handlers can map them straight to a clean
  * HTTP status/message instead of a generic 500 — distinct from unexpected

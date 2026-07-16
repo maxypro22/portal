@@ -34,7 +34,7 @@ export default function ContactPage() {
             <h3 className="eyebrow mb-5">Reservations</h3>
             <ul className="space-y-4">
               {BRAND.phones.map((phone) => (
-                <li key={phone} className="flex items-center gap-3 text-cream-muted">
+                <li key={phone} className="flex items-center gap-3 text-content-muted">
                   <span className="grid h-10 w-10 place-items-center rounded-full bg-gold/10 text-gold">
                     <Phone className="h-4 w-4" />
                   </span>
@@ -50,12 +50,12 @@ export default function ContactPage() {
             <h3 className="eyebrow mb-5">Working Hours</h3>
             <ul className="space-y-3">
               {BRAND.hours.map((h) => (
-                <li key={h.days} className="flex items-center justify-between text-cream-muted">
+                <li key={h.days} className="flex items-center justify-between text-content-muted">
                   <span className="flex items-center gap-3">
                     <Clock className="h-4 w-4 text-gold" />
                     {h.days}
                   </span>
-                  <span className="text-cream-dim">{h.time}</span>
+                  <span className="text-content-dim">{h.time}</span>
                 </li>
               ))}
             </ul>
@@ -77,8 +77,8 @@ export default function ContactPage() {
                 icon={<MapPin className="h-8 w-8" />}
               />
               <div className="p-6">
-                <h3 className="font-serif text-xl font-semibold text-cream">{loc.name}</h3>
-                <p className="mt-2 flex items-start gap-2 text-sm text-cream-dim">
+                <h3 className="font-serif text-xl font-semibold text-content">{loc.name}</h3>
+                <p className="mt-2 flex items-start gap-2 text-sm text-content-dim">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
                   {loc.address}
                 </p>

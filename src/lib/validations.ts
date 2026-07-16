@@ -24,9 +24,10 @@ const qatarPhoneSchema = z
   });
 
 // --- Public booking creation -------------------------------------------------
+// No tableId here — a table is auto-assigned server-side (see pickAvailableTable)
+// based on locationId/partySize/date/timeSlot, not chosen by the guest.
 export const createBookingSchema = z.object({
   locationId: z.string().min(1, "Please select a location"),
-  tableId: z.string().min(1, "Please select a table"),
   guestName: z.string().trim().min(2, "Please enter your full name").max(80),
   guestPhone: qatarPhoneSchema,
   guestEmail: z.string().trim().email("Enter a valid email address"),

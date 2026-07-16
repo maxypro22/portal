@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,29 +14,22 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Check,
   Phone,
   Mail,
   User,
-  MessageSquare,
+  UtensilsCrossed,
   CheckCircle2,
   Loader2,
-  Armchair,
   Clock,
   PartyPopper,
 } from "lucide-react";
-import { FloorPlan, type FloorTable } from "./FloorPlan";
-import { TableDropdownPicker } from "./TableDropdownPicker";
 import { WizardProgress } from "./WizardProgress";
 import { Skeleton, EmptyState, ImagePlaceholder } from "@/components/ui/Primitives";
 import { apiFetch } from "@/lib/fetcher";
 import { guestDetailsSchema, type GuestDetailsInput } from "@/lib/validations";
-import {
-  MAX_ADVANCE_BOOKING_DAYS,
-  MAX_PARTY_SIZE,
-  MIN_PARTY_SIZE,
-  SECTION_META,
-  type Section,
-} from "@/lib/constants";
+import { MAX_ADVANCE_BOOKING_DAYS, MAX_PARTY_SIZE, MIN_PARTY_SIZE } from "@/lib/constants";
 import {
   buildMonthGrid,
   cn,
@@ -55,6 +49,7 @@ type Location = {
   imageUrl: string | null;
   _count?: { tables: number };
 };
+type FloorTableLite = { id: string; capacity: number; isActive: boolean };
 type Slot = { time: string; past: boolean; available: boolean };
 type BookingResult = {
   reference: string;
@@ -67,19 +62,27 @@ type BookingResult = {
 
 const STEPS = [
   { id: 1, label: "Location" },
-  { id: 2, label: "Table" },
-  { id: 3, label: "Guests & Time" },
-  { id: 4, label: "Details" },
-  { id: 5, label: "Confirm" },
+  { id: 2, label: "Guests & Time" },
+  { id: 3, label: "Details" },
+  { id: 4, label: "Confirm" },
 ];
 const LAST_STEP = STEPS.length;
+
+/** Real menu items (burgers & sandwiches) for the "what are you in the mood for" picker. */
+const MOOD_ITEMS = [
+  { name: "Sizzling Cheese Burger", image: "/menu/sizzling-cheese-burger.webp" },
+  { name: "Pulled Ribs", image: "/menu/pulled-ribs.webp" },
+  { name: "Town Burger – Wagyu", image: "/menu/town-burger-wagyu.webp" },
+  { name: "Brisket Quesadilla", image: "/menu/brisket-quesadilla.webp" },
+  { name: "Little Spice", image: "/menu/little-spice.webp" },
+  { name: "Classic Bacon Burger", image: "/menu/classic-bacon-burger.webp" },
+] as const;
 
 export function BookingWizard() {
   const [step, setStep] = useState(1);
 
-  // Selections
+  // Selections — no table: it's auto-assigned server-side at booking time.
   const [location, setLocation] = useState<Location | null>(null);
-  const [table, setTable] = useState<FloorTable | null>(null);
   const [partySize, setPartySize] = useState(2);
   const [dateKey, setDateKey] = useState<string | null>(null);
   const [timeSlot, setTimeSlot] = useState<string | null>(null);
@@ -92,19 +95,18 @@ export function BookingWizard() {
   const goNext = () => setStep((s) => Math.min(LAST_STEP, s + 1));
   const goBack = () => setStep((s) => Math.max(1, s - 1));
 
-  // Reset downstream selections when an upstream choice changes.
   const handleSelectLocation = (loc: Location) => {
     if (loc.id !== location?.id) {
-      setTable(null);
       setDateKey(null);
       setTimeSlot(null);
     }
     setLocation(loc);
   };
-  const handleSelectTable = (t: FloorTable) => {
-    setTable(t);
-    // Keep party size within the new table capacity.
-    setPartySize((p) => Math.min(p, t.capacity));
+
+  // Changing party size can invalidate the currently-picked slot (a bigger
+  // party may not fit wherever was free before), so clear it defensively.
+  const handlePartySizeChange = (n: number) => {
+    setPartySize(n);
     setTimeSlot(null);
   };
 
@@ -113,25 +115,22 @@ export function BookingWizard() {
       case 1:
         return !!location;
       case 2:
-        return !!table;
+        return partySize >= MIN_PARTY_SIZE && !!dateKey && !!timeSlot;
       case 3:
-        return !!table && partySize >= MIN_PARTY_SIZE && partySize <= table.capacity && !!dateKey && !!timeSlot;
-      case 4:
         return !!details;
       default:
         return true;
     }
-  }, [step, location, table, partySize, dateKey, timeSlot, details]);
+  }, [step, location, partySize, dateKey, timeSlot, details]);
 
   async function submitBooking() {
-    if (!location || !table || !dateKey || !timeSlot || !details) return;
+    if (!location || !dateKey || !timeSlot || !details) return;
     setSubmitting(true);
     try {
       const booking = await apiFetch<BookingResult>("/api/bookings", {
         method: "POST",
         body: JSON.stringify({
           locationId: location.id,
-          tableId: table.id,
           partySize,
           date: dateKey,
           timeSlot,
@@ -155,26 +154,20 @@ export function BookingWizard() {
 
   return (
     <div className="mx-auto max-w-4xl pb-24 lg:pb-0">
-      <WizardProgress steps={STEPS} current={step} />
+      {/* Sticky progress — stays visible while scrolling a step's content. */}
+      <div className="sticky top-20 z-30 -mx-4 bg-surface-bg/90 px-4 py-3 backdrop-blur-md sm:top-24 sm:mx-0 sm:rounded-2xl sm:bg-surface-bg/70 sm:px-4">
+        <WizardProgress steps={STEPS} current={step} />
+      </div>
 
-      <div className="card mt-10 p-6 sm:p-8 lg:p-10">
+      <div className="card mt-6 p-6 sm:p-8 lg:p-10">
         {step === 1 && (
           <LocationStep selected={location} onSelect={handleSelectLocation} />
         )}
         {step === 2 && location && (
-          <TableStep
-            location={location}
-            selected={table}
-            partySize={partySize}
-            onSelect={handleSelectTable}
-          />
-        )}
-        {step === 3 && location && table && (
           <GuestsDateTimeStep
             location={location}
-            table={table}
             partySize={partySize}
-            onPartyChange={setPartySize}
+            onPartyChange={handlePartySizeChange}
             dateKey={dateKey}
             timeSlot={timeSlot}
             onPickDate={(d) => {
@@ -184,13 +177,12 @@ export function BookingWizard() {
             onPickTime={setTimeSlot}
           />
         )}
-        {step === 4 && (
+        {step === 3 && (
           <DetailsStep defaultValues={details} onValid={setDetails} />
         )}
-        {step === 5 && location && table && dateKey && timeSlot && details && (
+        {step === 4 && location && dateKey && timeSlot && details && (
           <ConfirmStep
             location={location}
-            table={table}
             partySize={partySize}
             dateKey={dateKey}
             timeSlot={timeSlot}
@@ -352,95 +344,14 @@ function LocationStep({
 }
 
 /* ------------------------------ Step 2 --------------------------------- */
-function TableStep({
-  location,
-  selected,
-  partySize,
-  onSelect,
-}: {
-  location: Location;
-  selected: FloorTable | null;
-  partySize: number;
-  onSelect: (t: FloorTable) => void;
-}) {
-  const [tables, setTables] = useState<FloorTable[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setTables(null);
-    apiFetch<FloorTable[]>(`/api/tables?locationId=${location.id}`)
-      .then(setTables)
-      .catch((e) => setError(e.message));
-  }, [location.id]);
-
-  return (
-    <div className="animate-fade-in">
-      <StepHeader
-        icon={<Armchair className="h-5 w-5" />}
-        title="Select Your Table"
-        subtitle="Pick a table from the Main Hall, Terrace, or VIP booths."
-      />
-
-      {error && <EmptyState title="Couldn't load the tables" description={error} />}
-      {!tables && !error && (
-        <>
-          <Skeleton className="hidden floorplan-canvas w-full rounded-2xl sm:block" />
-          <div className="space-y-4 sm:hidden">
-            <Skeleton className="h-11 w-full rounded-xl" />
-            <Skeleton className="h-12 w-full rounded-xl" />
-          </div>
-        </>
-      )}
-
-      {tables && (
-        <>
-          {/* Visual floor plan — larger screens */}
-          <div className="hidden sm:block">
-            <FloorPlan
-              tables={tables}
-              selectedTableId={selected?.id}
-              onSelect={onSelect}
-              mode="select"
-            />
-          </div>
-
-          {/* Section tabs + table dropdown — phones */}
-          <div className="sm:hidden">
-            <TableDropdownPicker
-              tables={tables}
-              selectedTableId={selected?.id}
-              partySize={partySize}
-              onSelect={onSelect}
-            />
-          </div>
-
-          {selected && (
-            <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-4 py-3 text-sm text-content">
-              <CheckCircle2 className="h-4 w-4 text-gold" />
-              Selected <span className="font-semibold text-gold">Table {selected.number}</span> ·{" "}
-              {seatLabel(selected.capacity)} ·{" "}
-              {SECTION_META[selected.section as Section]?.label ?? selected.section}
-              {partySize > selected.capacity && (
-                <span className="text-status-cancelled"> — too small for {partySize} guests</span>
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------ Step 3 --------------------------------- */
 /**
  * Combined Guests / Date / Time picker — one pill-shaped bar with three
  * segments, each opening a dropdown panel below (guest count list, a real
- * month calendar, and a scrollable time list). Replaces the previous
- * separate "party size" and "date & time" steps.
+ * month calendar, and a scrollable time list). No table is chosen here —
+ * one is auto-assigned to fit the party size when the booking is submitted.
  */
 function GuestsDateTimeStep({
   location,
-  table,
   partySize,
   onPartyChange,
   dateKey,
@@ -449,7 +360,6 @@ function GuestsDateTimeStep({
   onPickTime,
 }: {
   location: Location;
-  table: FloorTable;
   partySize: number;
   onPartyChange: (n: number) => void;
   dateKey: string | null;
@@ -459,19 +369,35 @@ function GuestsDateTimeStep({
 }) {
   const [open, setOpen] = useState<"guests" | "date" | "time" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
-  const max = Math.min(MAX_PARTY_SIZE, table.capacity);
+
+  // The largest active table at this location bounds how many guests we can
+  // ever seat — keeps the guest picker from offering unbookable sizes.
+  const [maxCapacity, setMaxCapacity] = useState<number>(MAX_PARTY_SIZE);
+  useEffect(() => {
+    apiFetch<FloorTableLite[]>(`/api/tables?locationId=${location.id}`)
+      .then((tables) => {
+        const largest = Math.max(0, ...tables.filter((t) => t.isActive).map((t) => t.capacity));
+        setMaxCapacity(largest > 0 ? Math.min(MAX_PARTY_SIZE, largest) : MAX_PARTY_SIZE);
+      })
+      .catch(() => setMaxCapacity(MAX_PARTY_SIZE));
+  }, [location.id]);
+
+  useEffect(() => {
+    if (partySize > maxCapacity) onPartyChange(maxCapacity);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxCapacity]);
 
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
 
   const loadSlots = useCallback(
-    async (key: string) => {
+    async (key: string, guests: number) => {
       setLoadingSlots(true);
       setSlotsError(null);
       try {
         const data = await apiFetch<{ slots: Slot[] }>(
-          `/api/availability?locationId=${location.id}&date=${key}&tableId=${table.id}`
+          `/api/availability?locationId=${location.id}&date=${key}&partySize=${guests}`
         );
         setSlots(data.slots);
       } catch (e) {
@@ -480,13 +406,13 @@ function GuestsDateTimeStep({
         setLoadingSlots(false);
       }
     },
-    [location.id, table.id]
+    [location.id]
   );
 
   useEffect(() => {
-    if (dateKey) loadSlots(dateKey);
+    if (dateKey) loadSlots(dateKey, partySize);
     else setSlots(null);
-  }, [dateKey, loadSlots]);
+  }, [dateKey, partySize, loadSlots]);
 
   // Close the open panel on outside click.
   useEffect(() => {
@@ -506,7 +432,7 @@ function GuestsDateTimeStep({
       <StepHeader
         icon={<CalendarDays className="h-5 w-5" />}
         title="Guests, Date & Time"
-        subtitle={`Table ${table.number} seats up to ${table.capacity}. Reservations run for 2 hours.`}
+        subtitle="Reservations run for 2 hours. We'll seat you at the best available table."
       />
 
       <div ref={ref} className="relative">
@@ -538,7 +464,7 @@ function GuestsDateTimeStep({
         {open && (
           <div className="absolute left-1/2 top-full z-30 mt-2 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 overflow-hidden rounded-2xl border border-surface-border bg-surface-raised shadow-card-hover sm:w-96">
             {open === "guests" && (
-              <GuestsList max={max} value={partySize} onSelect={(n) => { onPartyChange(n); setOpen(null); }} />
+              <GuestsList max={maxCapacity} value={partySize} onSelect={(n) => { onPartyChange(n); setOpen(null); }} />
             )}
             {open === "date" && (
               <MiniCalendar
@@ -559,13 +485,8 @@ function GuestsDateTimeStep({
         )}
       </div>
 
-      {max < MAX_PARTY_SIZE && (
-        <p className="mt-4 text-xs text-content-dim">
-          Need a larger party? Go back and pick a VIP booth or 6-seater.
-        </p>
-      )}
-      <p className="mt-3 text-xs text-content-dim/70">
-        Struck-through times are already booked or have passed.
+      <p className="mt-4 text-xs text-content-dim/70">
+        Struck-through times are already fully booked or have passed.
       </p>
     </div>
   );
@@ -802,7 +723,7 @@ function formatShortDate(date: Date): string {
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-/* ------------------------------ Step 4 --------------------------------- */
+/* ------------------------------ Step 3 --------------------------------- */
 function DetailsStep({
   defaultValues,
   onValid,
@@ -813,6 +734,7 @@ function DetailsStep({
   const {
     register,
     watch,
+    setValue,
     formState: { errors, isValid },
   } = useForm<GuestDetailsInput>({
     resolver: zodResolver(guestDetailsSchema),
@@ -873,20 +795,92 @@ function DetailsStep({
         </div>
 
         <div className="sm:col-span-2">
-          <Field
-            label="Special Requests (optional)"
-            icon={<MessageSquare className="h-4 w-4" />}
-            error={errors.specialRequests?.message}
-          >
-            <textarea
-              {...register("specialRequests")}
-              rows={3}
-              placeholder="Allergies, celebrations, seating preferences…"
-              className="input-base resize-none"
-            />
-          </Field>
+          <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-content-muted">
+            <span className="text-gold/70"><UtensilsCrossed className="h-4 w-4" /></span>
+            What are you in the mood for today?
+          </span>
+          <MoodDropdown
+            value={watch("specialRequests") ?? ""}
+            onSelect={(name) => setValue("specialRequests", name, { shouldValidate: true })}
+          />
         </div>
       </form>
+    </div>
+  );
+}
+
+/** Small dropdown: food name on the left, rounded-square thumbnail on the right. */
+function MoodDropdown({ value, onSelect }: { value: string; onSelect: (name: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = MOOD_ITEMS.find((m) => m.name === value);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="input-base flex items-center justify-between text-left"
+        aria-expanded={open}
+      >
+        <span className="flex items-center gap-2.5">
+          {selected && (
+            <Image src={selected.image} alt="" width={28} height={28} className="rounded-md object-cover" />
+          )}
+          <span className={selected ? "text-content" : "text-content-dim"}>
+            {selected ? selected.name : "Not sure yet — surprise me!"}
+          </span>
+        </span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-gold transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-surface-border bg-surface-raised shadow-card-hover">
+          <button
+            type="button"
+            onClick={() => { onSelect(""); setOpen(false); }}
+            className={cn(
+              "flex w-full items-center justify-between px-4 py-3 text-sm transition-colors",
+              !value ? "bg-gold/15 text-gold" : "text-content-muted hover:bg-surface-sunken hover:text-content"
+            )}
+          >
+            Not sure yet — surprise me!
+            {!value && <Check className="h-4 w-4" />}
+          </button>
+          {MOOD_ITEMS.map((item) => {
+            const active = item.name === value;
+            return (
+              <button
+                key={item.name}
+                type="button"
+                onClick={() => { onSelect(item.name); setOpen(false); }}
+                className={cn(
+                  "flex w-full items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors",
+                  active ? "bg-gold/15 text-gold" : "text-content-muted hover:bg-surface-sunken hover:text-content"
+                )}
+              >
+                <span className="truncate">{item.name}</span>
+                <Image
+                  src={item.image}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                />
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -914,17 +908,15 @@ function Field({
   );
 }
 
-/* ------------------------------ Step 5 --------------------------------- */
+/* ------------------------------ Step 4 --------------------------------- */
 function ConfirmStep({
   location,
-  table,
   partySize,
   dateKey,
   timeSlot,
   details,
 }: {
   location: Location;
-  table: FloorTable;
   partySize: number;
   dateKey: string;
   timeSlot: string;
@@ -932,11 +924,6 @@ function ConfirmStep({
 }) {
   const rows = [
     { icon: <MapPin className="h-4 w-4" />, label: "Location", value: location.name },
-    {
-      icon: <Armchair className="h-4 w-4" />,
-      label: "Table",
-      value: `Table ${table.number} · ${SECTION_META[table.section as Section]?.label ?? table.section} · ${seatLabel(table.capacity)}`,
-    },
     { icon: <Users className="h-4 w-4" />, label: "Guests", value: `${partySize}` },
     {
       icon: <CalendarDays className="h-4 w-4" />,
@@ -974,15 +961,15 @@ function ConfirmStep({
       {details.specialRequests && (
         <div className="mt-4 rounded-xl border border-surface-border bg-surface-sunken/30 p-4">
           <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-luxe text-content-dim">
-            <MessageSquare className="h-3.5 w-3.5" /> Special Requests
+            <UtensilsCrossed className="h-3.5 w-3.5" /> In the mood for
           </p>
           <p className="mt-2 text-sm text-content-muted">{details.specialRequests}</p>
         </div>
       )}
 
       <p className="mt-5 text-center text-xs text-content-dim/70">
-        Your reservation will be held as <span className="text-status-pending">Pending</span> until
-        confirmed by our team.
+        A table will be assigned automatically to fit your party. Your reservation will be held as{" "}
+        <span className="text-status-pending">Pending</span> until confirmed by our team.
       </p>
     </div>
   );

@@ -64,7 +64,7 @@ export function SocialIcons({
       ? "rounded-lg border border-surface-border bg-surface-sunken text-content hover:border-gold hover:bg-gold hover:text-ink"
       : tone === "dark"
         ? "rounded-full border border-content/25 bg-content/5 text-content hover:border-gold hover:bg-gold hover:text-ink"
-        : "rounded-full border border-brand-600/60 bg-brand-950/40 text-cream-muted hover:border-gold hover:text-gold";
+        : "rounded-full border border-surface-border bg-surface-sunken/40 text-content-muted hover:border-gold hover:text-gold";
 
   return (
     <ul className={cn("flex items-center gap-2.5", className)}>

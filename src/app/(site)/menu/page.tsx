@@ -68,13 +68,13 @@ export default function MenuPage() {
                 <li key={item.name} className="group flex items-baseline gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
-                      <span className="font-serif text-lg text-cream transition-colors group-hover:text-gold">
+                      <span className="font-serif text-lg text-content transition-colors group-hover:text-gold">
                         {item.name}
                       </span>
-                      <span className="h-px flex-1 translate-y-[-2px] border-b border-dotted border-brand-600" />
+                      <span className="h-px flex-1 translate-y-[-2px] border-b border-dotted border-surface-border-strong" />
                       <span className="font-semibold text-gold">{item.price}</span>
                     </div>
-                    <p className="mt-1 text-sm text-cream-dim">{item.desc}</p>
+                    <p className="mt-1 text-sm text-content-dim">{item.desc}</p>
                   </div>
                 </li>
               ))}
