@@ -35,7 +35,16 @@ export function LoginForm() {
         password: values.password,
       });
       if (res?.error) {
-        toast.error("Invalid email or password");
+        // NextAuth returns "CredentialsSignin" when authorize() returns null
+        // (wrong email/password) vs. "Configuration" when authorize() threw
+        // (e.g. the app couldn't reach the database) — surface which one so
+        // this doesn't look like a password problem when it's actually a
+        // server/DB problem.
+        toast.error(
+          res.error === "CredentialsSignin"
+            ? "Invalid email or password"
+            : `Sign-in failed: ${res.error}. This usually means the server can't reach the database — check DATABASE_URL / DIRECT_URL and Vercel's runtime logs.`
+        );
       } else {
         toast.success("Signed in");
         router.push(callbackUrl);

@@ -80,6 +80,7 @@ export type LocationInput = z.infer<typeof locationSchema>;
 // --- Auth --------------------------------------------------------------------
 export const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  // trimmed defensively — a stray copy-paste space silently breaks bcrypt.compare
+  password: z.string().trim().min(1, "Password is required"),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
