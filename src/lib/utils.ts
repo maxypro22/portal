@@ -108,8 +108,11 @@ export function generateReference(year: number): string {
   return `ST-${year}-${code}`;
 }
 
-/** Qatar phone: +974 followed by 8 digits (first digit 3,5,6,7). */
-export const QATAR_PHONE_REGEX = /^\+974[3567]\d{7}$/;
+/**
+ * Local Qatar mobile number: exactly 8 digits, no leading-digit restriction.
+ * +974 is shown as a placeholder only — the guest types just the 8 digits.
+ */
+export const QATAR_PHONE_REGEX = /^\d{8}$/;
 
 /** Normalize user phone input to +974######## where possible. */
 export function normalizeQatarPhone(input: string): string {

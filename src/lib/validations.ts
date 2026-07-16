@@ -9,19 +9,26 @@ import {
 import { QATAR_PHONE_REGEX } from "./utils";
 
 /**
- * Qatar phone number — accepts the common display formats users actually type
- * (e.g. "+974 3XXX XXXX", "+974-3XXX-XXXX") by stripping spaces/dashes before
- * checking the strict +974[3567]XXXXXXX pattern. The placeholder text shows a
- * spaced format, so the validator must tolerate it or "Continue" silently
- * blocks on correctly-formatted numbers.
+ * Local Qatar mobile number — the guest types just the 8 digits (+974 is
+ * shown as a placeholder only, not part of the value). Strips spaces/dashes
+ * and a redundant "+974"/"00974" prefix if the guest types it anyway, checks
+ * exactly 8 digits remain (no leading-digit restriction), then re-attaches
+ * "+974" so the STORED/displayed value is always a full, dialable number —
+ * only the form's input UX treats +974 as implicit, not the data itself.
  */
 const qatarPhoneSchema = z
   .string()
   .trim()
-  .transform((v) => v.replace(/[\s-]/g, ""))
+  .transform((v) => {
+    let digits = v.replace(/[^\d]/g, "");
+    if (digits.startsWith("00974")) digits = digits.slice(5);
+    else if (digits.startsWith("974") && digits.length > 8) digits = digits.slice(3);
+    return digits;
+  })
   .refine((v) => QATAR_PHONE_REGEX.test(v), {
-    message: "Enter a valid Qatar number, e.g. +974 3XXXXXXX",
-  });
+    message: "Enter your 8-digit mobile number",
+  })
+  .transform((digits) => `+974${digits}`);
 
 // --- Public booking creation -------------------------------------------------
 // No tableId here — a table is auto-assigned server-side (see pickAvailableTable)

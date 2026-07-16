@@ -12,7 +12,7 @@ Built with **Next.js 14 (App Router)** · **TypeScript** · **Tailwind CSS** ·
 ## ✨ Features
 
 **Public site** — luxury design system (near-black header, warm-brown footer, gold
-accents, real Steak Town logo), light/dark theme toggle, Home / Menu / Contact pages,
+accents, real Steak Town logo), light/dark theme toggle, Home / Contact pages,
 and a **4-step booking wizard**: Location → Guests/Date/Time (pill-bar dropdowns: guest
 count, a real month calendar, a time list) → guest details (+974 phone, "what are you in
 the mood for" menu picker) → confirmation with an `ST-2026-XXXX` reference. No table is

@@ -289,51 +289,129 @@ function LocationStep({
       {error && <EmptyState title="Couldn't load locations" description={error} />}
 
       {!locations && !error && (
-        <div className="grid gap-5 sm:grid-cols-2">
-          {[0, 1].map((i) => (
-            <Skeleton key={i} className="h-64 w-full rounded-2xl" />
-          ))}
-        </div>
+        <>
+          <div className="hidden gap-5 sm:grid sm:grid-cols-2">
+            {[0, 1].map((i) => (
+              <Skeleton key={i} className="h-64 w-full rounded-2xl" />
+            ))}
+          </div>
+          <Skeleton className="h-12 w-full rounded-xl sm:hidden" />
+        </>
       )}
 
       {locations && (
-        <div className="grid gap-5 sm:grid-cols-2">
+        <>
+          {/* Cards — larger screens */}
+          <div className="hidden gap-5 sm:grid sm:grid-cols-2">
+            {locations.map((loc) => {
+              const active = selected?.id === loc.id;
+              return (
+                <button
+                  key={loc.id}
+                  type="button"
+                  onClick={() => onSelect(loc)}
+                  className={cn(
+                    "group flex h-full flex-col overflow-hidden rounded-2xl border-2 text-left transition-all duration-300 hover:-translate-y-1",
+                    active
+                      ? "border-gold shadow-gold"
+                      : "border-surface-border hover:border-gold/50"
+                  )}
+                >
+                  <ImagePlaceholder
+                    label={loc.name}
+                    className="h-36 w-full shrink-0"
+                    icon={<MapPin className="h-7 w-7" />}
+                  />
+                  <div className="flex flex-1 flex-col p-5">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-serif text-lg font-semibold text-content">
+                        {loc.name}
+                      </h3>
+                      {active && <CheckCircle2 className="h-5 w-5 shrink-0 text-gold" />}
+                    </div>
+                    <p className="mt-2 flex items-start gap-2 text-sm text-content-dim">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gold/70" />
+                      {loc.address}
+                    </p>
+                    {loc._count && (
+                      <p className="mt-auto pt-3 text-xs text-content-dim/70">
+                        {loc._count.tables} tables available
+                      </p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Dropdown — phones */}
+          <div className="sm:hidden">
+            <LocationDropdown locations={locations} selected={selected} onSelect={onSelect} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Mobile location picker: a dropdown listing each branch's name + address. */
+function LocationDropdown({
+  locations,
+  selected,
+  onSelect,
+}: {
+  locations: Location[];
+  selected: Location | null;
+  onSelect: (l: Location) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="input-base flex items-center justify-between text-left"
+        aria-expanded={open}
+      >
+        <span className={selected ? "text-content" : "text-content-dim"}>
+          {selected ? selected.name : "Select a location"}
+        </span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-gold transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-surface-border bg-surface-raised shadow-card-hover">
           {locations.map((loc) => {
             const active = selected?.id === loc.id;
             return (
               <button
                 key={loc.id}
                 type="button"
-                onClick={() => onSelect(loc)}
+                onClick={() => {
+                  onSelect(loc);
+                  setOpen(false);
+                }}
                 className={cn(
-                  "group flex h-full flex-col overflow-hidden rounded-2xl border-2 text-left transition-all duration-300 hover:-translate-y-1",
-                  active
-                    ? "border-gold shadow-gold"
-                    : "border-surface-border hover:border-gold/50"
+                  "flex w-full items-start justify-between gap-3 px-4 py-3 text-left text-sm transition-colors",
+                  active ? "bg-gold/15 text-gold" : "text-content-muted hover:bg-surface-sunken hover:text-content"
                 )}
               >
-                <ImagePlaceholder
-                  label={loc.name}
-                  className="h-36 w-full shrink-0"
-                  icon={<MapPin className="h-7 w-7" />}
-                />
-                <div className="flex flex-1 flex-col p-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-serif text-lg font-semibold text-content">
-                      {loc.name}
-                    </h3>
-                    {active && <CheckCircle2 className="h-5 w-5 shrink-0 text-gold" />}
-                  </div>
-                  <p className="mt-2 flex items-start gap-2 text-sm text-content-dim">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gold/70" />
-                    {loc.address}
-                  </p>
-                  {loc._count && (
-                    <p className="mt-auto pt-3 text-xs text-content-dim/70">
-                      {loc._count.tables} tables available
-                    </p>
-                  )}
-                </div>
+                <span className="min-w-0">
+                  <span className="block font-medium">{loc.name}</span>
+                  <span className="mt-0.5 block truncate text-xs opacity-80">{loc.address}</span>
+                </span>
+                {active && <Check className="mt-0.5 h-4 w-4 shrink-0" />}
               </button>
             );
           })}
@@ -741,7 +819,7 @@ function DetailsStep({
     mode: "onChange",
     defaultValues: defaultValues ?? {
       guestName: "",
-      guestPhone: "+974",
+      guestPhone: "",
       guestEmail: "",
       specialRequests: "",
     },
@@ -775,7 +853,7 @@ function DetailsStep({
         <Field label="Phone (Qatar)" icon={<Phone className="h-4 w-4" />} error={errors.guestPhone?.message}>
           <input
             {...register("guestPhone")}
-            placeholder="+974 3XXX XXXX"
+            placeholder="+974"
             className="input-base"
             inputMode="tel"
             autoComplete="tel"
