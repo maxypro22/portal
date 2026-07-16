@@ -18,7 +18,7 @@ export default function AdminLoginPage() {
 
       <div className="w-full max-w-md animate-fade-in-up">
         <div className="mb-8 flex justify-center">
-          <Logo href="/" />
+          <Logo href="/" variant="white" />
         </div>
 
         <div className="card p-8 sm:p-10">

@@ -85,7 +85,7 @@ export function Sidebar({ userName }: { userName?: string | null }) {
     <>
       {/* Mobile top bar */}
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-brand-600/40 bg-brand-950/90 px-4 py-3 backdrop-blur-md lg:hidden">
-        <Logo size="sm" />
+        <Logo size="sm" variant="white" />
         <button
           onClick={() => setOpen(true)}
           aria-label="Open menu"
@@ -98,7 +98,7 @@ export function Sidebar({ userName }: { userName?: string | null }) {
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-brand-600/40 bg-brand-950/60 py-6 lg:flex">
         <div className="px-5 pb-6">
-          <Logo size="sm" />
+          <Logo size="sm" variant="white" />
         </div>
         <NavList />
         <Footer />
@@ -113,7 +113,7 @@ export function Sidebar({ userName }: { userName?: string | null }) {
           />
           <div className="absolute left-0 top-0 flex h-full w-72 flex-col bg-brand-950 py-6 shadow-2xl animate-fade-in">
             <div className="flex items-center justify-between px-5 pb-6">
-              <Logo size="sm" />
+              <Logo size="sm" variant="white" />
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close menu"
