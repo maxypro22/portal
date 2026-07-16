@@ -8,15 +8,27 @@ import {
 } from "./constants";
 import { QATAR_PHONE_REGEX } from "./utils";
 
+/**
+ * Qatar phone number — accepts the common display formats users actually type
+ * (e.g. "+974 3XXX XXXX", "+974-3XXX-XXXX") by stripping spaces/dashes before
+ * checking the strict +974[3567]XXXXXXX pattern. The placeholder text shows a
+ * spaced format, so the validator must tolerate it or "Continue" silently
+ * blocks on correctly-formatted numbers.
+ */
+const qatarPhoneSchema = z
+  .string()
+  .trim()
+  .transform((v) => v.replace(/[\s-]/g, ""))
+  .refine((v) => QATAR_PHONE_REGEX.test(v), {
+    message: "Enter a valid Qatar number, e.g. +974 3XXXXXXX",
+  });
+
 // --- Public booking creation -------------------------------------------------
 export const createBookingSchema = z.object({
   locationId: z.string().min(1, "Please select a location"),
   tableId: z.string().min(1, "Please select a table"),
   guestName: z.string().trim().min(2, "Please enter your full name").max(80),
-  guestPhone: z
-    .string()
-    .trim()
-    .regex(QATAR_PHONE_REGEX, "Enter a valid Qatar number, e.g. +974 3XXXXXXX"),
+  guestPhone: qatarPhoneSchema,
   guestEmail: z.string().trim().email("Enter a valid email address"),
   partySize: z
     .number()
@@ -44,7 +56,7 @@ export type GuestDetailsInput = z.infer<typeof guestDetailsSchema>;
 export const updateBookingSchema = z.object({
   status: z.enum(BOOKING_STATUSES).optional(),
   guestName: z.string().trim().min(2).max(80).optional(),
-  guestPhone: z.string().trim().regex(QATAR_PHONE_REGEX).optional(),
+  guestPhone: qatarPhoneSchema.optional(),
   guestEmail: z.string().trim().email().optional(),
   partySize: z.number().int().min(MIN_PARTY_SIZE).max(MAX_PARTY_SIZE).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
