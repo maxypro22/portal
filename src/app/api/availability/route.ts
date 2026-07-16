@@ -55,27 +55,40 @@ export async function GET(req: Request) {
     const isToday = toDateKey(now) === date;
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-    // Candidate tables when checking by party size: any active table at this
-    // location that seats at least that many guests.
-    let candidateTableIds: Set<string> | null = null;
-    if (partySize) {
-      const candidates = await prisma.table.findMany({
-        where: { locationId, isActive: true, capacity: { gte: partySize } },
-        select: { id: true },
-      });
-      candidateTableIds = new Set(candidates.map((t) => t.id));
-    }
+    // These three lookups are independent of each other — run them
+    // concurrently instead of one-after-another so total latency is the
+    // slowest single query, not the sum of all three.
+    const [candidates, dayBookings, unavailableSet] = await Promise.all([
+      // Candidate tables when checking by party size: any active table at
+      // this location that seats at least that many guests.
+      partySize
+        ? prisma.table.findMany({
+            where: { locationId, isActive: true, capacity: { gte: partySize } },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+      // All active bookings for the day, to compute per-slot availability.
+      prisma.booking.findMany({
+        where: {
+          locationId,
+          date: day,
+          status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
+          ...(tableId ? { tableId } : {}),
+        },
+        select: { tableId: true, timeSlot: true, durationMinutes: true },
+      }),
+      // Which tables are blocked for a concrete window (admin floor plan dim).
+      timeSlot
+        ? getUnavailableTableIds({
+            locationId,
+            dateKey: date,
+            timeSlot,
+            durationMinutes: DEFAULT_DURATION_MINUTES,
+          })
+        : Promise.resolve(null),
+    ]);
 
-    // All active bookings for the day (one query), to compute per-slot availability.
-    const dayBookings = await prisma.booking.findMany({
-      where: {
-        locationId,
-        date: day,
-        status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
-        ...(tableId ? { tableId } : {}),
-      },
-      select: { tableId: true, timeSlot: true, durationMinutes: true },
-    });
+    const candidateTableIds = candidates ? new Set(candidates.map((t) => t.id)) : null;
 
     const slots = slotTimes.map((time) => {
       const start = timeToMinutes(time);
@@ -99,17 +112,7 @@ export async function GET(req: Request) {
       return { time, past, available: available && !past };
     });
 
-    // Optional: which tables are blocked for a concrete window (floor plan dim).
-    let unavailableTableIds: string[] = [];
-    if (timeSlot) {
-      const set = await getUnavailableTableIds({
-        locationId,
-        dateKey: date,
-        timeSlot,
-        durationMinutes: DEFAULT_DURATION_MINUTES,
-      });
-      unavailableTableIds = [...set];
-    }
+    const unavailableTableIds = unavailableSet ? [...unavailableSet] : [];
 
     return apiOk({ date, dayOfWeek, slots, unavailableTableIds });
   } catch (err) {
