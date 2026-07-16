@@ -7,7 +7,6 @@ import {
   MoreVertical,
   Check,
   X,
-  CheckCheck,
   UserX,
   Pencil,
   Trash2,
@@ -219,14 +218,13 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
                   <th className="px-4 py-3 font-semibold">Reference</th>
                   <th className="px-4 py-3 font-semibold">Guest</th>
                   <th className="px-4 py-3 font-semibold">Location</th>
-                  <th className="px-4 py-3 font-semibold">Table</th>
                   <th className="px-4 py-3 font-semibold">Date &amp; Time</th>
-                  <th className="px-4 py-3 font-semibold">Party</th>
+                  <th className="px-4 py-3 font-semibold"># of Guests</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody className={cn("divide-y divide-brand-600/30", loading && "opacity-50")}>
+              <tbody className={cn("divide-y divide-surface-border", loading && "opacity-50")}>
                 {data?.bookings.map((b) => (
                   <tr key={b.id} className="transition-colors hover:bg-surface-sunken/30">
                     <td className="px-4 py-3">
@@ -239,10 +237,6 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
                       <p className="text-xs text-content-dim">{b.guestPhone}</p>
                     </td>
                     <td className="px-4 py-3 text-content-muted">{b.location.name}</td>
-                    <td className="px-4 py-3 text-content-muted">
-                      #{b.table.number}
-                      <span className="ml-1 text-xs text-content-dim">({b.table.section})</span>
-                    </td>
                     <td className="px-4 py-3 text-content-muted">
                       <p>{new Date(b.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</p>
                       <p className="text-xs text-content-dim">{formatTime12h(b.timeSlot)}</p>
@@ -351,11 +345,6 @@ function RowActions({
       label: "Confirm",
       icon: <Check className="h-4 w-4" />,
       onClick: () => onStatus("CONFIRMED"),
-    },
-    {
-      label: "Mark Completed",
-      icon: <CheckCheck className="h-4 w-4" />,
-      onClick: () => onStatus("COMPLETED"),
     },
     { label: "No-show", icon: <UserX className="h-4 w-4" />, onClick: () => onStatus("NO_SHOW") },
     { label: "Cancel", icon: <X className="h-4 w-4" />, onClick: () => onStatus("CANCELLED") },

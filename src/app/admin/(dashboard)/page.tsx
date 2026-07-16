@@ -1,10 +1,11 @@
-import { CalendarCheck, CalendarClock, Users, Gauge, Clock } from "lucide-react";
+import Link from "next/link";
+import { CalendarCheck, CalendarClock, Users, Clock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, StatCard } from "@/components/admin/AdminUI";
 import { AdminChart, type ChartPoint } from "@/components/admin/AdminChart";
 import { StatusBadge } from "@/components/ui/Primitives";
 import { EmptyState } from "@/components/ui/Primitives";
-import { formatTime12h, toDateKey } from "@/lib/utils";
+import { cn, formatTime12h, toDateKey } from "@/lib/utils";
 import type { BookingStatus } from "@/lib/constants";
 
 export const metadata = { title: "Overview" };
@@ -12,32 +13,66 @@ export const dynamic = "force-dynamic"; // always fresh dashboard data
 
 const ACTIVE: BookingStatus[] = ["PENDING", "CONFIRMED", "COMPLETED"];
 
+const PERIODS = [
+  { key: "all", label: "All" },
+  { key: "day", label: "Day" },
+  { key: "week", label: "Week" },
+  { key: "month", label: "Month" },
+] as const;
+type PeriodKey = (typeof PERIODS)[number]["key"];
+
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-export default async function OverviewPage() {
+/**
+ * Date range for the selected stat-card period. `start`/`end` are both null
+ * for "all" — the queries below treat that as "no date filter," i.e. the
+ * all-time total, which is what "remove the filter" should show.
+ */
+function getPeriodRange(period: PeriodKey, today: Date) {
+  if (period === "day") return { start: today, end: today, label: "today" };
+  if (period === "week") {
+    const start = new Date(today);
+    start.setDate(today.getDate() - today.getDay()); // back to Sunday
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { start, end, label: "this week" };
+  }
+  if (period === "month") {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return { start, end, label: "this month" };
+  }
+  return { start: null as Date | null, end: null as Date | null, label: "all time" };
+}
+
+export default async function OverviewPage({
+  searchParams,
+}: {
+  searchParams: { period?: string };
+}) {
   const now = new Date();
   const today = startOfDay(now);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
+
+  const period: PeriodKey = PERIODS.some((p) => p.key === searchParams.period)
+    ? (searchParams.period as PeriodKey)
+    : "all";
+  const { start, end, label: periodLabel } = getPeriodRange(period, today);
+  const periodDateFilter = start && end ? { date: { gte: start, lte: end } } : {};
 
   // --- Parallel data fetch ---
-  const [
-    todayBookings,
-    upcomingCount,
-    totalActiveTables,
-    last14,
-    todaysTimeline,
-  ] = await Promise.all([
+  const [periodBookings, upcomingCount, last14, todaysTimeline] = await Promise.all([
     prisma.booking.findMany({
-      where: { date: today, status: { in: ACTIVE } },
-      select: { partySize: true, tableId: true },
+      where: { ...periodDateFilter, status: { in: ACTIVE } },
+      select: { partySize: true },
     }),
     prisma.booking.count({
-      where: { date: { gte: today }, status: { in: ["PENDING", "CONFIRMED"] } },
+      where: {
+        date: { gte: today, ...(end ? { lte: end } : {}) },
+        status: { in: ["PENDING", "CONFIRMED"] },
+      },
     }),
-    prisma.table.count({ where: { isActive: true } }),
     prisma.booking.findMany({
       where: {
         date: { gte: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 13) },
@@ -55,12 +90,7 @@ export default async function OverviewPage() {
     }),
   ]);
 
-  const totalGuestsToday = todayBookings.reduce((sum, b) => sum + b.partySize, 0);
-  const distinctTablesToday = new Set(todayBookings.map((b) => b.tableId)).size;
-  const occupancy =
-    totalActiveTables > 0
-      ? Math.min(100, Math.round((distinctTablesToday / totalActiveTables) * 100))
-      : 0;
+  const totalGuests = periodBookings.reduce((sum, b) => sum + b.partySize, 0);
 
   // Build 14-day chart buckets
   const buckets = new Map<string, number>();
@@ -91,14 +121,32 @@ export default async function OverviewPage() {
           month: "long",
           year: "numeric",
         })}
+        action={
+          <div className="inline-flex rounded-xl border border-surface-border bg-surface-sunken/40 p-1">
+            {PERIODS.map((p) => (
+              <Link
+                key={p.key}
+                href={p.key === "all" ? "/admin" : `/admin?period=${p.key}`}
+                className={cn(
+                  "rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  period === p.key
+                    ? "bg-gold-gradient text-brand-950"
+                    : "text-content-muted hover:text-content"
+                )}
+              >
+                {p.label}
+              </Link>
+            ))}
+          </div>
+        }
       />
 
-      {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Stat cards — scoped to the selected period above */}
+      <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
-          label="Today's Bookings"
-          value={todayBookings.length}
-          hint={`${distinctTablesToday} tables in use`}
+          label="Bookings"
+          value={periodBookings.length}
+          hint={`${periodLabel[0].toUpperCase()}${periodLabel.slice(1)}`}
           icon={<CalendarCheck className="h-5 w-5" />}
           accent="gold"
         />
@@ -110,18 +158,11 @@ export default async function OverviewPage() {
           accent="green"
         />
         <StatCard
-          label="Guests Today"
-          value={totalGuestsToday}
-          hint="Across all covers"
+          label="Guests"
+          value={totalGuests}
+          hint={`${periodLabel[0].toUpperCase()}${periodLabel.slice(1)}`}
           icon={<Users className="h-5 w-5" />}
           accent="amber"
-        />
-        <StatCard
-          label="Occupancy"
-          value={`${occupancy}%`}
-          hint={`${distinctTablesToday}/${totalActiveTables} tables`}
-          icon={<Gauge className="h-5 w-5" />}
-          accent="purple"
         />
       </div>
 

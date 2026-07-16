@@ -6,10 +6,14 @@ export const dynamic = "force-dynamic";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-/** GET /api/working-hours — admin: all 7 days, seeding sane defaults for any missing day. */
+/**
+ * GET /api/working-hours — PUBLIC (read-only): all 7 days, seeding sane
+ * defaults for any missing day. Not sensitive data — the booking wizard's
+ * calendar needs this to grey out days the restaurant is closed, and the
+ * availability endpoint already reveals working hours indirectly anyway.
+ */
 export async function GET() {
   try {
-    await requireAdmin();
     const rows = await prisma.workingHours.findMany({ orderBy: { dayOfWeek: "asc" } });
     const byDay = new Map(rows.map((r) => [r.dayOfWeek, r]));
 

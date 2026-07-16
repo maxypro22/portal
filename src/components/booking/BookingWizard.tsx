@@ -389,6 +389,16 @@ function GuestsDateTimeStep({
   const [open, setOpen] = useState<"guests" | "date" | "time" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Days of week the restaurant is closed entirely (set from /admin/hours) —
+  // location-independent, fetched once, used to grey out every matching
+  // weekday in the calendar (e.g. every Sunday if Sunday is disabled).
+  const [closedDays, setClosedDays] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    apiFetch<{ dayOfWeek: number; isOpen: boolean }[]>("/api/working-hours")
+      .then((days) => setClosedDays(new Set(days.filter((d) => !d.isOpen).map((d) => d.dayOfWeek))))
+      .catch(() => setClosedDays(new Set()));
+  }, []);
+
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
@@ -471,6 +481,7 @@ function GuestsDateTimeStep({
             {open === "date" && (
               <MiniCalendar
                 selectedKey={dateKey}
+                closedDays={closedDays}
                 onSelect={(k) => { onPickDate(k); setOpen(null); }}
               />
             )}
@@ -620,9 +631,11 @@ function TimesList({
 /** Real month-view calendar (prev/next navigation, past & out-of-range days disabled). */
 function MiniCalendar({
   selectedKey,
+  closedDays,
   onSelect,
 }: {
   selectedKey: string | null;
+  closedDays?: Set<number>;
   onSelect: (key: string) => void;
 }) {
   const today = useMemo(() => {
@@ -683,7 +696,8 @@ function MiniCalendar({
           const key = toDateKey(day);
           const isPast = day < today;
           const isTooFar = day > maxDate;
-          const disabled = isPast || isTooFar;
+          const isClosedWeekday = closedDays?.has(day.getDay()) ?? false;
+          const disabled = isPast || isTooFar || isClosedWeekday;
           const isToday = key === toDateKey(today);
           const isSelected = key === selectedKey;
 
