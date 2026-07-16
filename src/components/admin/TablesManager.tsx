@@ -171,7 +171,7 @@ export function TablesManager({ locations }: { locations: LocationLite[] }) {
         onClose={() => setDeleting(null)}
         onConfirm={doDelete}
         title="Delete table?"
-        message={`This removes Table ${deleting?.number}. Existing bookings for this table will also be removed.`}
+        message={`This removes Table ${deleting?.number}. Tables with any booking history (past or upcoming) can't be deleted — set it to inactive instead to keep records intact.`}
         confirmLabel="Delete"
         danger
         loading={busy}

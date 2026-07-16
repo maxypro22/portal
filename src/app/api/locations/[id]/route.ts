@@ -20,16 +20,19 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 }
 
-/** DELETE /api/locations/[id] — admin delete (cascades tables + bookings). */
+/**
+ * DELETE /api/locations/[id] — admin delete.
+ * The schema cascades: deleting a location deletes every table AND every
+ * booking ever made there. Block that if ANY booking exists (not just
+ * active ones) — deactivate instead so historical records are preserved.
+ */
 export async function DELETE(_req: Request, { params }: Params) {
   try {
     await requireAdmin();
-    const bookingCount = await prisma.booking.count({
-      where: { locationId: params.id, status: { in: ["PENDING", "CONFIRMED"] } },
-    });
+    const bookingCount = await prisma.booking.count({ where: { locationId: params.id } });
     if (bookingCount > 0) {
       return apiError(
-        `Cannot delete: ${bookingCount} active booking(s) exist for this location.`,
+        `Cannot delete: ${bookingCount} booking(s) reference this location (including past history). Set it to inactive instead to keep records intact.`,
         409
       );
     }

@@ -1,7 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { apiOk, apiError, handleRouteError, requireAdmin } from "@/lib/api";
 import { createBookingSchema } from "@/lib/validations";
-import { isSlotAvailable } from "@/lib/booking";
+import { BookingRequestError, isSlotAvailable, runSerializable } from "@/lib/booking";
 import { DEFAULT_DURATION_MINUTES } from "@/lib/constants";
 import {
   fromDateKey,
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
     const pageSize = Math.min(50, Math.max(5, parseInt(searchParams.get("pageSize") ?? "10", 10)));
 
-    const where: Record<string, unknown> = {};
+    const where: Prisma.BookingWhereInput = {};
     if (status) where.status = status;
     if (locationId) where.locationId = locationId;
     if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) where.date = fromDateKey(date);
@@ -70,37 +71,24 @@ export async function GET(req: Request) {
 /**
  * POST /api/bookings — PUBLIC create.
  * Validates capacity, working hours, past-time, and prevents double-booking.
+ *
+ * The table lookup, availability check, and insert all run inside a single
+ * Serializable transaction (see runSerializable) so two guests booking the
+ * same table/slot at the exact same moment can't both succeed — Postgres
+ * itself rejects one of the conflicting transactions, which we retry.
  */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const input = createBookingSchema.parse(body);
 
-    // 1) Table must exist, be active, and belong to the location.
-    const table = await prisma.table.findUnique({ where: { id: input.tableId } });
-    if (!table || table.locationId !== input.locationId) {
-      return apiError("Selected table is not valid for this location.", 400);
-    }
-    if (!table.isActive) {
-      return apiError("Selected table is not available for booking.", 400);
-    }
-
-    // 2) Party size must fit the table.
-    if (input.partySize > table.capacity) {
-      return apiError(
-        `This table seats ${table.capacity}. Please choose a larger table.`,
-        400
-      );
-    }
-
-    // 3) Time slot must be valid for that weekday's working hours.
+    // --- Checks that don't need the database: fail fast, no transaction. ---
     const day = fromDateKey(input.date);
     const validSlots = generateSlotsForDay(day.getDay(), DEFAULT_DURATION_MINUTES);
     if (!validSlots.includes(input.timeSlot)) {
       return apiError("Selected time is outside our working hours.", 400);
     }
 
-    // 4) Not in the past.
     const now = new Date();
     if (toDateKey(now) === input.date) {
       const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -112,59 +100,82 @@ export async function POST(req: Request) {
       return apiError("Cannot book a date in the past.", 400);
     }
 
-    // 5) Double-booking guard (2-hour overlap).
-    const free = await isSlotAvailable({
-      locationId: input.locationId,
-      tableId: input.tableId,
-      dateKey: input.date,
-      timeSlot: input.timeSlot,
-      durationMinutes: DEFAULT_DURATION_MINUTES,
-    });
-    if (!free) {
-      return apiError(
-        "Sorry, that table has just been booked for this time. Please pick another slot.",
-        409
-      );
-    }
-
-    // 6) Create with a unique reference (retry on rare collision).
     const year = day.getFullYear();
-    let booking = null;
-    for (let attempt = 0; attempt < 5 && !booking; attempt++) {
-      const reference = generateReference(year);
-      try {
-        booking = await prisma.booking.create({
-          data: {
-            reference,
-            locationId: input.locationId,
-            tableId: input.tableId,
-            guestName: input.guestName,
-            guestPhone: input.guestPhone,
-            guestEmail: input.guestEmail,
-            partySize: input.partySize,
-            date: day,
-            timeSlot: input.timeSlot,
-            durationMinutes: DEFAULT_DURATION_MINUTES,
-            status: "PENDING",
-            specialRequests: input.specialRequests || null,
-          },
-          include: {
-            location: { select: { name: true, address: true } },
-            table: { select: { number: true, capacity: true, section: true } },
-          },
-        });
-      } catch (e) {
-        // reference collision → retry; anything else → bubble up
-        if (typeof e === "object" && e && "code" in e && (e as { code?: string }).code === "P2002") {
-          continue;
-        }
-        throw e;
-      }
-    }
 
-    if (!booking) return apiError("Could not generate a booking reference. Try again.", 500);
+    const booking = await runSerializable(async (tx) => {
+      // 1) Table must exist, be active, and belong to the location.
+      const table = await tx.table.findUnique({ where: { id: input.tableId } });
+      if (!table || table.locationId !== input.locationId) {
+        throw new BookingRequestError("Selected table is not valid for this location.", 400);
+      }
+      if (!table.isActive) {
+        throw new BookingRequestError("Selected table is not available for booking.", 400);
+      }
+
+      // 2) Party size must fit the table.
+      if (input.partySize > table.capacity) {
+        throw new BookingRequestError(
+          `This table seats ${table.capacity}. Please choose a larger table.`,
+          400
+        );
+      }
+
+      // 3) Double-booking guard (2-hour overlap) — checked and written inside
+      //    the same transaction, closing the race window a plain read+write
+      //    would have under concurrent requests.
+      const free = await isSlotAvailable(
+        {
+          locationId: input.locationId,
+          tableId: input.tableId,
+          dateKey: input.date,
+          timeSlot: input.timeSlot,
+          durationMinutes: DEFAULT_DURATION_MINUTES,
+        },
+        tx
+      );
+      if (!free) {
+        throw new BookingRequestError(
+          "Sorry, that table has just been booked for this time. Please pick another slot.",
+          409
+        );
+      }
+
+      // 4) Create with a unique reference (retry on rare collision).
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const reference = generateReference(year);
+        try {
+          return await tx.booking.create({
+            data: {
+              reference,
+              locationId: input.locationId,
+              tableId: input.tableId,
+              guestName: input.guestName,
+              guestPhone: input.guestPhone,
+              guestEmail: input.guestEmail,
+              partySize: input.partySize,
+              date: day,
+              timeSlot: input.timeSlot,
+              durationMinutes: DEFAULT_DURATION_MINUTES,
+              status: "PENDING",
+              specialRequests: input.specialRequests || null,
+            },
+            include: {
+              location: { select: { name: true, address: true } },
+              table: { select: { number: true, capacity: true, section: true } },
+            },
+          });
+        } catch (e) {
+          if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+          throw e;
+        }
+      }
+
+      throw new BookingRequestError("Could not generate a booking reference. Try again.", 500);
+    });
+
     return apiOk(booking, 201);
   } catch (err) {
+    if (err instanceof BookingRequestError) return apiError(err.message, err.status);
     return handleRouteError(err);
   }
 }

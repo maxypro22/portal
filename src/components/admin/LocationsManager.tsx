@@ -151,7 +151,7 @@ export function LocationsManager() {
         onClose={() => setDeleting(null)}
         onConfirm={doDelete}
         title="Delete location?"
-        message={`This removes "${deleting?.name}" and all its tables. Locations with active bookings cannot be deleted.`}
+        message={`This removes "${deleting?.name}" and all its tables. Locations with any booking history (past or upcoming) can't be deleted — set it to inactive instead to keep records intact.`}
         confirmLabel="Delete"
         danger
         loading={busy}
