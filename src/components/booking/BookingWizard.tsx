@@ -26,7 +26,7 @@ import {
   PartyPopper,
 } from "lucide-react";
 import { WizardProgress } from "./WizardProgress";
-import { Skeleton, EmptyState, ImagePlaceholder } from "@/components/ui/Primitives";
+import { Skeleton, EmptyState } from "@/components/ui/Primitives";
 import { apiFetch } from "@/lib/fetcher";
 import { guestDetailsSchema, type GuestDetailsInput } from "@/lib/validations";
 import { MAX_ADVANCE_BOOKING_DAYS, MAX_PARTY_SIZE, MIN_PARTY_SIZE } from "@/lib/constants";
@@ -37,7 +37,6 @@ import {
   formatLongDate,
   fromDateKey,
   normalizeQatarPhone,
-  seatLabel,
   toDateKey,
 } from "@/lib/utils";
 
@@ -49,7 +48,6 @@ type Location = {
   imageUrl: string | null;
   _count?: { tables: number };
 };
-type FloorTableLite = { id: string; capacity: number; isActive: boolean };
 type Slot = { time: string; past: boolean; available: boolean };
 type BookingResult = {
   reference: string;
@@ -288,67 +286,10 @@ function LocationStep({
 
       {error && <EmptyState title="Couldn't load locations" description={error} />}
 
-      {!locations && !error && (
-        <>
-          <div className="hidden gap-5 sm:grid sm:grid-cols-2">
-            {[0, 1].map((i) => (
-              <Skeleton key={i} className="h-64 w-full rounded-2xl" />
-            ))}
-          </div>
-          <Skeleton className="h-12 w-full rounded-xl sm:hidden" />
-        </>
-      )}
+      {!locations && !error && <Skeleton className="h-12 w-full rounded-xl" />}
 
       {locations && (
-        <>
-          {/* Cards — larger screens */}
-          <div className="hidden gap-5 sm:grid sm:grid-cols-2">
-            {locations.map((loc) => {
-              const active = selected?.id === loc.id;
-              return (
-                <button
-                  key={loc.id}
-                  type="button"
-                  onClick={() => onSelect(loc)}
-                  className={cn(
-                    "group flex h-full flex-col overflow-hidden rounded-2xl border-2 text-left transition-all duration-300 hover:-translate-y-1",
-                    active
-                      ? "border-gold shadow-gold"
-                      : "border-surface-border hover:border-gold/50"
-                  )}
-                >
-                  <ImagePlaceholder
-                    label={loc.name}
-                    className="h-36 w-full shrink-0"
-                    icon={<MapPin className="h-7 w-7" />}
-                  />
-                  <div className="flex flex-1 flex-col p-5">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-serif text-lg font-semibold text-content">
-                        {loc.name}
-                      </h3>
-                      {active && <CheckCircle2 className="h-5 w-5 shrink-0 text-gold" />}
-                    </div>
-                    <p className="mt-2 flex items-start gap-2 text-sm text-content-dim">
-                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gold/70" />
-                      {loc.address}
-                    </p>
-                    {loc._count && (
-                      <p className="mt-auto pt-3 text-xs text-content-dim/70">
-                        {loc._count.tables} tables available
-                      </p>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Dropdown — phones */}
-          <div className="sm:hidden">
-            <LocationDropdown locations={locations} selected={selected} onSelect={onSelect} />
-          </div>
-        </>
+        <LocationDropdown locations={locations} selected={selected} onSelect={onSelect} />
       )}
     </div>
   );
@@ -448,23 +389,6 @@ function GuestsDateTimeStep({
   const [open, setOpen] = useState<"guests" | "date" | "time" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
-  // The largest active table at this location bounds how many guests we can
-  // ever seat — keeps the guest picker from offering unbookable sizes.
-  const [maxCapacity, setMaxCapacity] = useState<number>(MAX_PARTY_SIZE);
-  useEffect(() => {
-    apiFetch<FloorTableLite[]>(`/api/tables?locationId=${location.id}`)
-      .then((tables) => {
-        const largest = Math.max(0, ...tables.filter((t) => t.isActive).map((t) => t.capacity));
-        setMaxCapacity(largest > 0 ? Math.min(MAX_PARTY_SIZE, largest) : MAX_PARTY_SIZE);
-      })
-      .catch(() => setMaxCapacity(MAX_PARTY_SIZE));
-  }, [location.id]);
-
-  useEffect(() => {
-    if (partySize > maxCapacity) onPartyChange(maxCapacity);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [maxCapacity]);
-
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
@@ -542,7 +466,7 @@ function GuestsDateTimeStep({
         {open && (
           <div className="absolute left-1/2 top-full z-30 mt-2 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 overflow-hidden rounded-2xl border border-surface-border bg-surface-raised shadow-card-hover sm:w-96">
             {open === "guests" && (
-              <GuestsList max={maxCapacity} value={partySize} onSelect={(n) => { onPartyChange(n); setOpen(null); }} />
+              <GuestsList max={MAX_PARTY_SIZE} value={partySize} onSelect={(n) => { onPartyChange(n); setOpen(null); }} />
             )}
             {open === "date" && (
               <MiniCalendar
@@ -1096,7 +1020,6 @@ function SuccessScreen({
 
         <dl className="mx-auto mt-8 grid max-w-md gap-3 text-left text-sm">
           <SummaryRow label="Location" value={result.location.name} />
-          <SummaryRow label="Table" value={`Table ${result.table.number} · ${seatLabel(result.table.capacity)}`} />
           <SummaryRow label="Guests" value={`${partySize}`} />
           <SummaryRow label="Date" value={formatLongDate(fromDateKey(result.date))} />
           <SummaryRow label="Time" value={`${formatTime12h(result.timeSlot)} (2 hrs)`} />
