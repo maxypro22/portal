@@ -1,0 +1,105 @@
+// Steak Town — Prisma schema (Supabase Postgres)
+//
+// Local/first-time setup:
+//   npm run db:push    -> sync schema to Supabase (uses DIRECT_URL)
+//   npm run db:seed    -> admin user (+ optional demo locations/tables)
+//
+// DATABASE_URL -> Supabase POOLED connection (pgbouncer, port 6543) for the app.
+// DIRECT_URL   -> Supabase DIRECT connection (port 5432) for migrations/db push.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Admin users (NextAuth Credentials provider)
+// -----------------------------------------------------------------------------
+model User {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  hashedPassword String
+  role           String   @default("ADMIN") // ADMIN | STAFF
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// Restaurant branches
+// -----------------------------------------------------------------------------
+model Location {
+  id        String    @id @default(cuid())
+  name      String
+  address   String
+  phone     String
+  imageUrl  String? // optional hero/photo placeholder
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tables   Table[]
+  bookings Booking[]
+}
+
+// -----------------------------------------------------------------------------
+// Physical tables on a location's floor plan
+// section: MAIN | TERRACE | VIP
+// shape:   round | square | rect | booth
+// posX/posY are percentage coordinates (0-100) on the floor plan canvas
+// -----------------------------------------------------------------------------
+model Table {
+  id         String   @id @default(cuid())
+  locationId String
+  number     Int
+  capacity   Int
+  section    String   @default("MAIN")
+  shape      String   @default("square")
+  posX       Float    @default(50)
+  posY       Float    @default(50)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  location Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@unique([locationId, number])
+  @@index([locationId])
+}
+
+// -----------------------------------------------------------------------------
+// Customer bookings
+// date:      calendar day (stored at 00:00 UTC of the booking day)
+// timeSlot:  "HH:mm" 24h start time of the reservation
+// A table cannot be double-booked for overlapping [start, start+duration) windows.
+// -----------------------------------------------------------------------------
+model Booking {
+  id              String   @id @default(cuid())
+  reference       String   @unique // e.g. ST-2026-8F3A
+  locationId      String
+  tableId         String
+  guestName       String
+  guestPhone      String
+  guestEmail      String
+  partySize       Int
+  date            DateTime
+  timeSlot        String
+  durationMinutes Int      @default(120)
+  status          String   @default("PENDING") // PENDING | CONFIRMED | CANCELLED | COMPLETED | NO_SHOW
+  specialRequests String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  table    Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  @@index([locationId, date])
+  @@index([tableId, date])
+  @@index([status])
+}

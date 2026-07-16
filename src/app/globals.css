@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Steak Town — global theme
+   ============================================================ */
+:root {
+  --brand-bg: #2d2424;
+  --gold: #e0b357;
+  --cream: #f5efe6;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-brand-800 text-cream font-sans antialiased;
+    background-image: theme("backgroundImage.brand-radial"),
+      theme("backgroundImage.noise-texture");
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
+    @apply font-serif;
+  }
+
+  /* Custom themed scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #241d1d;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #4a3c3c;
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #5c4a4a;
+  }
+
+  /* Gold text selection */
+  ::selection {
+    background: rgba(224, 179, 87, 0.35);
+    color: #f5efe6;
+  }
+
+  /* Focus ring consistent with brand */
+  :focus-visible {
+    outline: 2px solid rgba(224, 179, 87, 0.7);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Eyebrow / small-caps label */
+  .eyebrow {
+    @apply text-gold text-xs font-semibold uppercase tracking-luxe;
+  }
+
+  /* Gold text via gradient clip */
+  .text-gold-gradient {
+    @apply bg-gold-gradient bg-clip-text text-transparent;
+  }
+
+  /* Primary gold button */
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-gold-gradient px-6 py-3
+           font-semibold text-brand-950 shadow-gold transition-all duration-300
+           hover:brightness-110 hover:shadow-[0_10px_40px_-10px_rgba(224,179,87,0.6)]
+           active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Outlined ghost button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-gold/40
+           px-6 py-3 font-semibold text-cream transition-all duration-300
+           hover:border-gold hover:bg-gold/10 active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Surface card */
+  .card {
+    @apply rounded-2xl border border-brand-600/50 bg-brand-900/70 shadow-card backdrop-blur-sm;
+  }
+
+  /* Hairline divider */
+  .hairline {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-gold/30 to-transparent;
+  }
+
+  /* Input base */
+  .input-base {
+    @apply w-full rounded-xl border border-brand-600/60 bg-brand-950/60 px-4 py-3 text-cream
+           placeholder:text-cream-dim/60 transition-colors duration-200
+           focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/40;
+  }
+
+  /* Loading skeleton shimmer */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-brand-700/40;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full animate-shimmer
+           bg-gradient-to-r from-transparent via-white/5 to-transparent;
+  }
+}
+
+/* Utility for the fixed-position floor plan aspect ratio */
+.floorplan-canvas {
+  aspect-ratio: 16 / 10;
+}
