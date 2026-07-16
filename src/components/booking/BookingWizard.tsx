@@ -1037,11 +1037,25 @@ function ConfirmStep({
       </div>
 
       {details.specialRequests && (
-        <div className="mt-4 rounded-xl border border-surface-border bg-surface-sunken/30 p-4">
-          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-luxe text-content-dim">
-            <UtensilsCrossed className="h-3.5 w-3.5" /> In the mood for
-          </p>
-          <p className="mt-2 text-sm text-content-muted">{details.specialRequests}</p>
+        <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-surface-border bg-surface-sunken/30 p-4">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-luxe text-content-dim">
+              <UtensilsCrossed className="h-3.5 w-3.5" /> In the mood for
+            </p>
+            <p className="mt-2 truncate text-sm text-content-muted">{details.specialRequests}</p>
+          </div>
+          {(() => {
+            const mood = MOOD_ITEMS.find((m) => m.name === details.specialRequests);
+            return mood ? (
+              <Image
+                src={mood.image}
+                alt={mood.name}
+                width={48}
+                height={48}
+                className="h-12 w-12 shrink-0 rounded-lg object-cover"
+              />
+            ) : null;
+          })()}
         </div>
       )}
 
