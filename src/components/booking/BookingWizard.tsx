@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,8 +11,8 @@ import {
   CalendarDays,
   ArrowLeft,
   ArrowRight,
-  Minus,
-  Plus,
+  ChevronLeft,
+  ChevronRight,
   Phone,
   Mail,
   User,
@@ -24,18 +24,20 @@ import {
   PartyPopper,
 } from "lucide-react";
 import { FloorPlan, type FloorTable } from "./FloorPlan";
-import { TableGrid } from "./TableGrid";
+import { TableDropdownPicker } from "./TableDropdownPicker";
 import { WizardProgress } from "./WizardProgress";
 import { Skeleton, EmptyState, ImagePlaceholder } from "@/components/ui/Primitives";
 import { apiFetch } from "@/lib/fetcher";
 import { guestDetailsSchema, type GuestDetailsInput } from "@/lib/validations";
 import {
+  MAX_ADVANCE_BOOKING_DAYS,
   MAX_PARTY_SIZE,
   MIN_PARTY_SIZE,
   SECTION_META,
   type Section,
 } from "@/lib/constants";
 import {
+  buildMonthGrid,
   cn,
   formatTime12h,
   formatLongDate,
@@ -66,11 +68,11 @@ type BookingResult = {
 const STEPS = [
   { id: 1, label: "Location" },
   { id: 2, label: "Table" },
-  { id: 3, label: "Guests" },
-  { id: 4, label: "Date & Time" },
-  { id: 5, label: "Details" },
-  { id: 6, label: "Confirm" },
+  { id: 3, label: "Guests & Time" },
+  { id: 4, label: "Details" },
+  { id: 5, label: "Confirm" },
 ];
+const LAST_STEP = STEPS.length;
 
 export function BookingWizard() {
   const [step, setStep] = useState(1);
@@ -87,7 +89,7 @@ export function BookingWizard() {
   const [result, setResult] = useState<BookingResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const goNext = () => setStep((s) => Math.min(6, s + 1));
+  const goNext = () => setStep((s) => Math.min(LAST_STEP, s + 1));
   const goBack = () => setStep((s) => Math.max(1, s - 1));
 
   // Reset downstream selections when an upstream choice changes.
@@ -113,10 +115,8 @@ export function BookingWizard() {
       case 2:
         return !!table;
       case 3:
-        return partySize >= MIN_PARTY_SIZE && !!table && partySize <= table.capacity;
+        return !!table && partySize >= MIN_PARTY_SIZE && partySize <= table.capacity && !!dateKey && !!timeSlot;
       case 4:
-        return !!dateKey && !!timeSlot;
-      case 5:
         return !!details;
       default:
         return true;
@@ -169,13 +169,12 @@ export function BookingWizard() {
             onSelect={handleSelectTable}
           />
         )}
-        {step === 3 && table && (
-          <PartyStep table={table} partySize={partySize} onChange={setPartySize} />
-        )}
-        {step === 4 && location && table && (
-          <DateTimeStep
+        {step === 3 && location && table && (
+          <GuestsDateTimeStep
             location={location}
             table={table}
+            partySize={partySize}
+            onPartyChange={setPartySize}
             dateKey={dateKey}
             timeSlot={timeSlot}
             onPickDate={(d) => {
@@ -185,10 +184,10 @@ export function BookingWizard() {
             onPickTime={setTimeSlot}
           />
         )}
-        {step === 5 && (
+        {step === 4 && (
           <DetailsStep defaultValues={details} onValid={setDetails} />
         )}
-        {step === 6 && location && table && dateKey && timeSlot && details && (
+        {step === 5 && location && table && dateKey && timeSlot && details && (
           <ConfirmStep
             location={location}
             table={table}
@@ -200,24 +199,24 @@ export function BookingWizard() {
         )}
       </div>
 
-      {/* Footer navigation — fixed bottom bar on phones, inline on desktop */}
-      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-3 border-t border-brand-600/40 bg-brand-950/95 px-4 py-3 backdrop-blur-md lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none">
+      {/* Footer navigation — fixed bottom bar on phones (equal-width buttons), inline on desktop */}
+      <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 gap-3 border-t border-surface-border bg-surface-raised/95 px-4 py-3 backdrop-blur-md lg:static lg:mt-6 lg:flex lg:items-center lg:justify-between lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none">
         <button
           type="button"
           onClick={goBack}
           disabled={step === 1}
-          className="btn-ghost px-5 py-2.5 text-sm disabled:invisible"
+          className="btn-ghost justify-center px-5 py-2.5 text-sm disabled:invisible lg:flex-none"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
         </button>
 
-        {step < 6 ? (
+        {step < LAST_STEP ? (
           <button
             type="button"
             onClick={goNext}
             disabled={!canContinue}
-            className="btn-gold flex-1 justify-center px-6 py-2.5 text-sm lg:flex-none"
+            className="btn-gold justify-center px-6 py-2.5 text-sm lg:flex-none"
           >
             Continue
             <ArrowRight className="h-4 w-4" />
@@ -227,7 +226,7 @@ export function BookingWizard() {
             type="button"
             onClick={submitBooking}
             disabled={submitting}
-            className="btn-gold flex-1 justify-center px-6 py-2.5 text-sm lg:flex-none"
+            className="btn-gold justify-center px-6 py-2.5 text-sm lg:flex-none"
           >
             {submitting ? (
               <>
@@ -263,8 +262,8 @@ function StepHeader({
         {icon}
       </span>
       <div>
-        <h2 className="font-serif text-2xl font-bold text-cream">{title}</h2>
-        <p className="mt-1 text-sm text-cream-dim">{subtitle}</p>
+        <h2 className="font-serif text-2xl font-bold text-content">{title}</h2>
+        <p className="mt-1 text-sm text-content-dim">{subtitle}</p>
       </div>
     </div>
   );
@@ -318,7 +317,7 @@ function LocationStep({
                   "group flex h-full flex-col overflow-hidden rounded-2xl border-2 text-left transition-all duration-300 hover:-translate-y-1",
                   active
                     ? "border-gold shadow-gold"
-                    : "border-brand-600/50 hover:border-gold/50"
+                    : "border-surface-border hover:border-gold/50"
                 )}
               >
                 <ImagePlaceholder
@@ -328,17 +327,17 @@ function LocationStep({
                 />
                 <div className="flex flex-1 flex-col p-5">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-serif text-lg font-semibold text-cream">
+                    <h3 className="font-serif text-lg font-semibold text-content">
                       {loc.name}
                     </h3>
                     {active && <CheckCircle2 className="h-5 w-5 shrink-0 text-gold" />}
                   </div>
-                  <p className="mt-2 flex items-start gap-2 text-sm text-cream-dim">
+                  <p className="mt-2 flex items-start gap-2 text-sm text-content-dim">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gold/70" />
                     {loc.address}
                   </p>
                   {loc._count && (
-                    <p className="mt-auto pt-3 text-xs text-cream-dim/70">
+                    <p className="mt-auto pt-3 text-xs text-content-dim/70">
                       {loc._count.tables} tables available
                     </p>
                   )}
@@ -386,10 +385,9 @@ function TableStep({
       {!tables && !error && (
         <>
           <Skeleton className="hidden floorplan-canvas w-full rounded-2xl sm:block" />
-          <div className="grid grid-cols-4 gap-2.5 sm:hidden">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <Skeleton key={i} className="h-[76px] w-full rounded-xl" />
-            ))}
+          <div className="space-y-4 sm:hidden">
+            <Skeleton className="h-11 w-full rounded-xl" />
+            <Skeleton className="h-12 w-full rounded-xl" />
           </div>
         </>
       )}
@@ -406,9 +404,9 @@ function TableStep({
             />
           </div>
 
-          {/* Sectioned tappable grid — phones */}
+          {/* Section tabs + table dropdown — phones */}
           <div className="sm:hidden">
-            <TableGrid
+            <TableDropdownPicker
               tables={tables}
               selectedTableId={selected?.id}
               partySize={partySize}
@@ -417,7 +415,7 @@ function TableStep({
           </div>
 
           {selected && (
-            <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-4 py-3 text-sm text-cream">
+            <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-4 py-3 text-sm text-content">
               <CheckCircle2 className="h-4 w-4 text-gold" />
               Selected <span className="font-semibold text-gold">Table {selected.number}</span> ·{" "}
               {seatLabel(selected.capacity)} ·{" "}
@@ -434,92 +432,17 @@ function TableStep({
 }
 
 /* ------------------------------ Step 3 --------------------------------- */
-function PartyStep({
-  table,
-  partySize,
-  onChange,
-}: {
-  table: FloorTable;
-  partySize: number;
-  onChange: (n: number) => void;
-}) {
-  const max = Math.min(MAX_PARTY_SIZE, table.capacity);
-  const dec = () => onChange(Math.max(MIN_PARTY_SIZE, partySize - 1));
-  const inc = () => onChange(Math.min(max, partySize + 1));
-
-  return (
-    <div className="animate-fade-in">
-      <StepHeader
-        icon={<Users className="h-5 w-5" />}
-        title="How Many Guests?"
-        subtitle={`Table ${table.number} seats up to ${table.capacity}. Choose your party size.`}
-      />
-
-      <div className="flex flex-col items-center gap-8 py-6">
-        <div className="flex items-center gap-6">
-          <button
-            type="button"
-            onClick={dec}
-            disabled={partySize <= MIN_PARTY_SIZE}
-            aria-label="Decrease guests"
-            className="grid h-14 w-14 place-items-center rounded-full border-2 border-gold/40 text-gold transition-all hover:bg-gold/10 disabled:opacity-40"
-          >
-            <Minus className="h-5 w-5" />
-          </button>
-
-          <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full border-2 border-gold bg-gold/5 shadow-gold">
-            <span className="font-serif text-5xl font-bold text-gold">{partySize}</span>
-            <span className="text-[11px] uppercase tracking-luxe text-cream-dim">
-              {partySize === 1 ? "Guest" : "Guests"}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={inc}
-            disabled={partySize >= max}
-            aria-label="Increase guests"
-            className="grid h-14 w-14 place-items-center rounded-full border-2 border-gold/40 text-gold transition-all hover:bg-gold/10 disabled:opacity-40"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Quick picks */}
-        <div className="flex flex-wrap justify-center gap-2">
-          {Array.from({ length: max }).map((_, i) => {
-            const n = i + 1;
-            return (
-              <button
-                key={n}
-                type="button"
-                onClick={() => onChange(n)}
-                className={cn(
-                  "h-10 w-10 rounded-lg border text-sm font-semibold transition-all",
-                  partySize === n
-                    ? "border-gold bg-gold-gradient text-brand-950"
-                    : "border-brand-600 text-cream-muted hover:border-gold/50"
-                )}
-              >
-                {n}
-              </button>
-            );
-          })}
-        </div>
-        {max < MAX_PARTY_SIZE && (
-          <p className="text-xs text-cream-dim">
-            Need a larger party? Go back and pick a VIP booth or 6-seater.
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------ Step 4 --------------------------------- */
-function DateTimeStep({
+/**
+ * Combined Guests / Date / Time picker — one pill-shaped bar with three
+ * segments, each opening a dropdown panel below (guest count list, a real
+ * month calendar, and a scrollable time list). Replaces the previous
+ * separate "party size" and "date & time" steps.
+ */
+function GuestsDateTimeStep({
   location,
   table,
+  partySize,
+  onPartyChange,
   dateKey,
   timeSlot,
   onPickDate,
@@ -527,39 +450,32 @@ function DateTimeStep({
 }: {
   location: Location;
   table: FloorTable;
+  partySize: number;
+  onPartyChange: (n: number) => void;
   dateKey: string | null;
   timeSlot: string | null;
   onPickDate: (d: string) => void;
   onPickTime: (t: string) => void;
 }) {
+  const [open, setOpen] = useState<"guests" | "date" | "time" | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const max = Math.min(MAX_PARTY_SIZE, table.capacity);
+
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Build the next 21 selectable days.
-  const days = useMemo(() => {
-    const list: { key: string; date: Date }[] = [];
-    const base = new Date();
-    base.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 21; i++) {
-      const d = new Date(base);
-      d.setDate(base.getDate() + i);
-      list.push({ key: toDateKey(d), date: d });
-    }
-    return list;
-  }, []);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
 
   const loadSlots = useCallback(
     async (key: string) => {
       setLoadingSlots(true);
-      setError(null);
+      setSlotsError(null);
       try {
         const data = await apiFetch<{ slots: Slot[] }>(
           `/api/availability?locationId=${location.id}&date=${key}&tableId=${table.id}`
         );
         setSlots(data.slots);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load times");
+        setSlotsError(e instanceof Error ? e.message : "Failed to load times");
       } finally {
         setLoadingSlots(false);
       }
@@ -572,114 +488,321 @@ function DateTimeStep({
     else setSlots(null);
   }, [dateKey, loadSlots]);
 
+  // Close the open panel on outside click.
+  useEffect(() => {
+    if (!open) return;
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(null);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  const dateLabel = dateKey ? formatShortDate(fromDateKey(dateKey)) : "Select date";
+  const timeLabel = timeSlot ? formatTime12h(timeSlot) : "Select time";
+
   return (
     <div className="animate-fade-in">
       <StepHeader
         icon={<CalendarDays className="h-5 w-5" />}
-        title="Pick a Date & Time"
-        subtitle={`Reservations run for 2 hours. Availability shown for Table ${table.number}.`}
+        title="Guests, Date & Time"
+        subtitle={`Table ${table.number} seats up to ${table.capacity}. Reservations run for 2 hours.`}
       />
 
-      {/* Date strip */}
-      <div className="mb-8">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-luxe text-cream-dim">Date</p>
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {days.map(({ key, date }) => {
-            const active = dateKey === key;
-            const isToday = key === toDateKey(new Date());
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onPickDate(key)}
-                className={cn(
-                  "flex min-w-[64px] shrink-0 flex-col items-center gap-1 rounded-xl border-2 px-3 py-2.5 transition-all",
-                  active
-                    ? "border-gold bg-gold-gradient text-brand-950"
-                    : "border-brand-600/60 text-cream-muted hover:border-gold/50"
-                )}
-              >
-                <span className="text-[10px] font-semibold uppercase">
-                  {date.toLocaleDateString("en-GB", { weekday: "short" })}
-                </span>
-                <span className="font-serif text-lg font-bold leading-none">
-                  {date.getDate()}
-                </span>
-                <span className="text-[9px] uppercase">
-                  {isToday ? "Today" : date.toLocaleDateString("en-GB", { month: "short" })}
-                </span>
-              </button>
-            );
-          })}
+      <div ref={ref} className="relative">
+        <div className="grid grid-cols-3 divide-x divide-gold/20 overflow-hidden rounded-2xl border-2 border-gold/40 bg-surface-sunken/60">
+          <PillSegmentButton
+            icon={<Users className="h-4 w-4" />}
+            label="Guests"
+            value={`${partySize} ${partySize === 1 ? "Guest" : "Guests"}`}
+            active={open === "guests"}
+            onClick={() => setOpen((v) => (v === "guests" ? null : "guests"))}
+          />
+          <PillSegmentButton
+            icon={<CalendarDays className="h-4 w-4" />}
+            label="Date"
+            value={dateLabel}
+            active={open === "date"}
+            onClick={() => setOpen((v) => (v === "date" ? null : "date"))}
+          />
+          <PillSegmentButton
+            icon={<Clock className="h-4 w-4" />}
+            label="Time"
+            value={timeLabel}
+            active={open === "time"}
+            disabled={!dateKey}
+            onClick={() => dateKey && setOpen((v) => (v === "time" ? null : "time"))}
+          />
         </div>
-      </div>
 
-      {/* Time grid */}
-      <div>
-        <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-luxe text-cream-dim">
-          <Clock className="h-3.5 w-3.5" /> Time
-        </p>
-
-        {!dateKey && (
-          <p className="rounded-xl border border-dashed border-brand-600/60 bg-brand-950/30 px-4 py-8 text-center text-sm text-cream-dim">
-            Select a date to see available times.
-          </p>
-        )}
-
-        {dateKey && (loadingSlots || slots === null) && (
-          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5">
-            {Array.from({ length: 15 }).map((_, i) => (
-              <Skeleton key={i} className="h-11 w-full rounded-lg" />
-            ))}
+        {open && (
+          <div className="absolute left-1/2 top-full z-30 mt-2 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 overflow-hidden rounded-2xl border border-surface-border bg-surface-raised shadow-card-hover sm:w-96">
+            {open === "guests" && (
+              <GuestsList max={max} value={partySize} onSelect={(n) => { onPartyChange(n); setOpen(null); }} />
+            )}
+            {open === "date" && (
+              <MiniCalendar
+                selectedKey={dateKey}
+                onSelect={(k) => { onPickDate(k); setOpen(null); }}
+              />
+            )}
+            {open === "time" && (
+              <TimesList
+                slots={slots}
+                loading={loadingSlots}
+                error={slotsError}
+                value={timeSlot}
+                onSelect={(t) => { onPickTime(t); setOpen(null); }}
+              />
+            )}
           </div>
         )}
+      </div>
 
-        {error && <EmptyState title="Couldn't load times" description={error} />}
+      {max < MAX_PARTY_SIZE && (
+        <p className="mt-4 text-xs text-content-dim">
+          Need a larger party? Go back and pick a VIP booth or 6-seater.
+        </p>
+      )}
+      <p className="mt-3 text-xs text-content-dim/70">
+        Struck-through times are already booked or have passed.
+      </p>
+    </div>
+  );
+}
 
-        {dateKey && !loadingSlots && slots && slots.length === 0 && (
-          <EmptyState
-            title="Closed on this day"
-            description="Please choose another date within our working hours."
-          />
-        )}
+/** One tappable segment of the Guests/Date/Time pill bar. */
+function PillSegmentButton({
+  icon,
+  label,
+  value,
+  active,
+  disabled,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "flex flex-col items-center gap-0.5 px-2 py-3 transition-colors sm:py-4",
+        active ? "bg-gold/10" : "hover:bg-gold/5",
+        disabled && "cursor-not-allowed opacity-40"
+      )}
+    >
+      <span className="text-gold/70">{icon}</span>
+      <span className="text-[9px] font-semibold uppercase tracking-wide text-content-dim">{label}</span>
+      <span className="max-w-full truncate text-sm font-semibold text-content">{value}</span>
+    </button>
+  );
+}
 
-        {dateKey && !loadingSlots && slots && slots.length > 0 && (
-          <>
-            <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5">
-              {slots.map((slot) => {
-                const disabled = !slot.available;
-                const active = timeSlot === slot.time;
-                return (
-                  <button
-                    key={slot.time}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => onPickTime(slot.time)}
-                    className={cn(
-                      "rounded-lg border-2 px-2 py-2.5 text-sm font-medium transition-all",
-                      active
-                        ? "border-gold bg-gold-gradient text-brand-950"
-                        : disabled
-                          ? "cursor-not-allowed border-brand-700 bg-brand-900/40 text-cream-dim/40 line-through"
-                          : "border-brand-600/60 text-cream-muted hover:border-gold/60 hover:text-cream"
-                    )}
-                  >
-                    {formatTime12h(slot.time)}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-4 text-xs text-cream-dim/70">
-              Struck-through times are already booked or have passed.
-            </p>
-          </>
-        )}
+/** Guest-count dropdown list. */
+function GuestsList({
+  max,
+  value,
+  onSelect,
+}: {
+  max: number;
+  value: number;
+  onSelect: (n: number) => void;
+}) {
+  return (
+    <div className="max-h-72 overflow-y-auto py-2">
+      {Array.from({ length: max }).map((_, i) => {
+        const n = i + 1;
+        const active = value === n;
+        return (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onSelect(n)}
+            className={cn(
+              "flex w-full items-center justify-center px-4 py-2.5 text-sm font-medium transition-colors",
+              active ? "bg-gold-gradient text-brand-950" : "text-content-muted hover:bg-surface-sunken hover:text-content"
+            )}
+          >
+            {n} {n === 1 ? "Guest" : "Guests"}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Scrollable time-slot dropdown list. */
+function TimesList({
+  slots,
+  loading,
+  error,
+  value,
+  onSelect,
+}: {
+  slots: Slot[] | null;
+  loading: boolean;
+  error: string | null;
+  value: string | null;
+  onSelect: (t: string) => void;
+}) {
+  if (error) return <div className="p-4"><EmptyState title="Couldn't load times" description={error} /></div>;
+  if (loading || slots === null) {
+    return (
+      <div className="space-y-2 p-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-9 w-full rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+  if (slots.length === 0) {
+    return <div className="p-4"><EmptyState title="Closed on this day" description="Please choose another date." /></div>;
+  }
+
+  return (
+    <div className="max-h-72 overflow-y-auto py-2">
+      {slots.map((slot) => {
+        const disabled = !slot.available;
+        const active = value === slot.time;
+        return (
+          <button
+            key={slot.time}
+            type="button"
+            disabled={disabled}
+            onClick={() => onSelect(slot.time)}
+            className={cn(
+              "flex w-full items-center justify-center px-4 py-2.5 text-sm font-medium transition-colors",
+              active
+                ? "bg-gold-gradient text-brand-950"
+                : disabled
+                  ? "cursor-not-allowed text-content-dim/40 line-through"
+                  : "text-content-muted hover:bg-surface-sunken hover:text-content"
+            )}
+          >
+            {formatTime12h(slot.time)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Real month-view calendar (prev/next navigation, past & out-of-range days disabled). */
+function MiniCalendar({
+  selectedKey,
+  onSelect,
+}: {
+  selectedKey: string | null;
+  onSelect: (key: string) => void;
+}) {
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const maxDate = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + MAX_ADVANCE_BOOKING_DAYS);
+    return d;
+  }, [today]);
+
+  const [viewDate, setViewDate] = useState(() => {
+    const base = selectedKey ? fromDateKey(selectedKey) : today;
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  });
+
+  const cells = useMemo(() => buildMonthGrid(viewDate), [viewDate]);
+  const canGoPrev = new Date(viewDate.getFullYear(), viewDate.getMonth(), 0) >= today;
+  const canGoNext = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1) <= maxDate;
+
+  return (
+    <div className="p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+          disabled={!canGoPrev}
+          aria-label="Previous month"
+          className="grid h-8 w-8 place-items-center rounded-lg text-content-dim transition-colors hover:bg-surface-sunken hover:text-content disabled:opacity-30"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="font-serif text-sm font-semibold text-content">
+          {viewDate.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}
+        </span>
+        <button
+          type="button"
+          onClick={() => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+          disabled={!canGoNext}
+          aria-label="Next month"
+          className="grid h-8 w-8 place-items-center rounded-lg text-content-dim transition-colors hover:bg-surface-sunken hover:text-content disabled:opacity-30"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 pb-1 text-center text-[10px] font-semibold uppercase text-content-dim">
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+          <span key={d}>{d}</span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((day, i) => {
+          if (!day) return <span key={i} />;
+          const key = toDateKey(day);
+          const isPast = day < today;
+          const isTooFar = day > maxDate;
+          const disabled = isPast || isTooFar;
+          const isToday = key === toDateKey(today);
+          const isSelected = key === selectedKey;
+
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={disabled}
+              onClick={() => onSelect(key)}
+              className={cn(
+                "grid h-9 w-9 place-items-center rounded-full text-sm transition-colors",
+                isSelected
+                  ? "bg-gold-gradient font-bold text-brand-950"
+                  : disabled
+                    ? "cursor-not-allowed text-content-dim/30 line-through"
+                    : isToday
+                      ? "border border-gold text-gold"
+                      : "text-content hover:bg-gold/10"
+              )}
+            >
+              {day.getDate()}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-/* ------------------------------ Step 5 --------------------------------- */
+/** "Today" / "Tomorrow" / "16 Jul" for the compact pill display. */
+function formatShortDate(date: Date): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const key = toDateKey(date);
+  if (key === toDateKey(today)) return "Today";
+  if (key === toDateKey(tomorrow)) return "Tomorrow";
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+/* ------------------------------ Step 4 --------------------------------- */
 function DetailsStep({
   defaultValues,
   onValid,
@@ -781,7 +904,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-cream-muted">
+      <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-content-muted">
         {icon && <span className="text-gold/70">{icon}</span>}
         {label}
       </span>
@@ -791,7 +914,7 @@ function Field({
   );
 }
 
-/* ------------------------------ Step 6 --------------------------------- */
+/* ------------------------------ Step 5 --------------------------------- */
 function ConfirmStep({
   location,
   table,
@@ -834,30 +957,30 @@ function ConfirmStep({
         subtitle="Please check the details below before confirming your reservation."
       />
 
-      <div className="overflow-hidden rounded-2xl border border-brand-600/50">
-        <dl className="divide-y divide-brand-600/40">
+      <div className="overflow-hidden rounded-2xl border border-surface-border">
+        <dl className="divide-y divide-surface-border">
           {rows.map((r) => (
-            <div key={r.label} className="flex items-center gap-4 px-5 py-3.5 odd:bg-brand-950/30">
-              <dt className="flex w-32 shrink-0 items-center gap-2 text-sm text-cream-dim">
+            <div key={r.label} className="flex items-center gap-4 px-5 py-3.5 odd:bg-surface-sunken/30">
+              <dt className="flex w-32 shrink-0 items-center gap-2 text-sm text-content-dim">
                 <span className="text-gold/70">{r.icon}</span>
                 {r.label}
               </dt>
-              <dd className="text-sm font-medium text-cream">{r.value}</dd>
+              <dd className="text-sm font-medium text-content">{r.value}</dd>
             </div>
           ))}
         </dl>
       </div>
 
       {details.specialRequests && (
-        <div className="mt-4 rounded-xl border border-brand-600/40 bg-brand-950/30 p-4">
-          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-luxe text-cream-dim">
+        <div className="mt-4 rounded-xl border border-surface-border bg-surface-sunken/30 p-4">
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-luxe text-content-dim">
             <MessageSquare className="h-3.5 w-3.5" /> Special Requests
           </p>
-          <p className="mt-2 text-sm text-cream-muted">{details.specialRequests}</p>
+          <p className="mt-2 text-sm text-content-muted">{details.specialRequests}</p>
         </div>
       )}
 
-      <p className="mt-5 text-center text-xs text-cream-dim/70">
+      <p className="mt-5 text-center text-xs text-content-dim/70">
         Your reservation will be held as <span className="text-status-pending">Pending</span> until
         confirmed by our team.
       </p>
@@ -880,13 +1003,13 @@ function SuccessScreen({
         <span className="mx-auto grid h-20 w-20 place-items-center rounded-full border-2 border-gold bg-gold/10 text-gold animate-pulse-gold">
           <PartyPopper className="h-9 w-9" />
         </span>
-        <h2 className="mt-6 font-serif text-3xl font-bold text-cream">Reservation Confirmed</h2>
-        <p className="mt-2 text-cream-muted">
+        <h2 className="mt-6 font-serif text-3xl font-bold text-content">Reservation Confirmed</h2>
+        <p className="mt-2 text-content-muted">
           Thank you, {result.guestName.split(" ")[0]}. We can&apos;t wait to host you.
         </p>
 
         <div className="mx-auto mt-8 max-w-xs rounded-2xl border border-gold/40 bg-gold/5 px-6 py-5">
-          <p className="text-xs uppercase tracking-luxe text-cream-dim">Booking Reference</p>
+          <p className="text-xs uppercase tracking-luxe text-content-dim">Booking Reference</p>
           <p className="mt-1 font-serif text-3xl font-bold tracking-widest text-gold">
             {result.reference}
           </p>
@@ -915,9 +1038,9 @@ function SuccessScreen({
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-brand-600/30 pb-2">
-      <dt className="text-cream-dim">{label}</dt>
-      <dd className="font-medium text-cream">{value}</dd>
+    <div className="flex items-center justify-between gap-4 border-b border-surface-border pb-2">
+      <dt className="text-content-dim">{label}</dt>
+      <dd className="font-medium text-content">{value}</dd>
     </div>
   );
 }

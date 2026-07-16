@@ -61,9 +61,9 @@ export function SocialIcons({
 
   const shapeClass =
     tone === "footer"
-      ? "rounded-lg bg-cream/90 text-cocoa-dark hover:bg-gold hover:text-cocoa-dark"
+      ? "rounded-lg border border-surface-border bg-surface-sunken text-content hover:border-gold hover:bg-gold hover:text-ink"
       : tone === "dark"
-        ? "rounded-full border border-white/25 bg-white/5 text-white hover:border-gold hover:bg-gold hover:text-ink"
+        ? "rounded-full border border-content/25 bg-content/5 text-content hover:border-gold hover:bg-gold hover:text-ink"
         : "rounded-full border border-brand-600/60 bg-brand-950/40 text-cream-muted hover:border-gold hover:text-gold";
 
   return (

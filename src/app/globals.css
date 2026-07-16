@@ -4,11 +4,43 @@
 
 /* ============================================================
    Steak Town — global theme
+   Dark is the default brand look. [data-theme="light"] (set on
+   <html> by ThemeToggle) overrides the surface/content variables
+   below for a professional light mode, background #f6f7fb.
+   Gold stays constant — it's the one thing that reads as
+   "Steak Town" in either mode.
    ============================================================ */
-:root {
-  --brand-bg: #2d2424;
-  --gold: #e0b357;
-  --cream: #f5efe6;
+:root,
+[data-theme="dark"] {
+  --gold: 224 179 87; /* #e0b357 — constant across themes */
+
+  --surface-bg: 45 36 36; /* #2d2424 — page background */
+  --surface-raised: 36 29 29; /* #241d1d — cards */
+  --surface-sunken: 28 23 23; /* #1c1717 — insets/overlays */
+  --surface-border: 74 60 60; /* #4a3c3c */
+  --surface-border-strong: 92 74 74; /* #5c4a4a */
+
+  --content: 245 239 230; /* #f5efe6 — primary text */
+  --content-muted: 216 207 194; /* #d8cfc2 */
+  --content-dim: 169 159 146; /* #a99f92 */
+
+  --chrome-header: 13 10 8; /* #0d0a08 */
+  --chrome-footer: 74 51 39; /* #4a3327 */
+}
+
+[data-theme="light"] {
+  --surface-bg: 246 247 251; /* #f6f7fb */
+  --surface-raised: 255 255 255;
+  --surface-sunken: 237 239 244;
+  --surface-border: 224 227 235;
+  --surface-border-strong: 200 205 217;
+
+  --content: 28 28 32;
+  --content-muted: 75 80 95;
+  --content-dim: 122 128 145;
+
+  --chrome-header: 255 255 255;
+  --chrome-footer: 255 255 255;
 }
 
 @layer base {
@@ -17,11 +49,16 @@
   }
 
   body {
-    @apply bg-brand-800 text-cream font-sans antialiased;
-    background-image: theme("backgroundImage.brand-radial"),
-      theme("backgroundImage.noise-texture");
+    @apply bg-surface-bg text-content font-sans antialiased transition-colors duration-300;
+    background-image: theme("backgroundImage.brand-radial"), theme("backgroundImage.noise-texture");
     background-attachment: fixed;
     min-height: 100vh;
+  }
+
+  /* Light mode: flat, clean background — the dark theme's gold glow/noise
+     texture is a dark-mode-only decorative touch. */
+  [data-theme="light"] body {
+    background-image: none;
   }
 
   h1,
@@ -38,20 +75,20 @@
     height: 10px;
   }
   ::-webkit-scrollbar-track {
-    background: #241d1d;
+    @apply bg-surface-sunken;
   }
   ::-webkit-scrollbar-thumb {
-    background: #4a3c3c;
+    @apply bg-surface-border-strong;
     border-radius: 8px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #5c4a4a;
+    @apply bg-gold/50;
   }
 
   /* Gold text selection */
   ::selection {
     background: rgba(224, 179, 87, 0.35);
-    color: #f5efe6;
+    color: rgb(var(--content));
   }
 
   /* Focus ring consistent with brand */
@@ -72,7 +109,11 @@
     @apply bg-gold-gradient bg-clip-text text-transparent;
   }
 
-  /* Primary gold button */
+  /*
+   * Primary gold button — text-brand-950 is intentional and NOT
+   * theme-driven: it's a fixed dark color for legibility on the gold
+   * gradient, which itself never changes between themes.
+   */
   .btn-gold {
     @apply inline-flex items-center justify-center gap-2 rounded-full bg-gold-gradient px-6 py-3
            font-semibold text-brand-950 shadow-gold transition-all duration-300
@@ -83,14 +124,14 @@
   /* Outlined ghost button */
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-full border border-gold/40
-           px-6 py-3 font-semibold text-cream transition-all duration-300
+           px-6 py-3 font-semibold text-content transition-all duration-300
            hover:border-gold hover:bg-gold/10 active:scale-[0.98]
            disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   /* Surface card */
   .card {
-    @apply rounded-2xl border border-brand-600/50 bg-brand-900/70 shadow-card backdrop-blur-sm;
+    @apply rounded-2xl border border-surface-border bg-surface-raised/90 shadow-card backdrop-blur-sm transition-colors duration-300;
   }
 
   /* Hairline divider */
@@ -100,19 +141,19 @@
 
   /* Input base */
   .input-base {
-    @apply w-full rounded-xl border border-brand-600/60 bg-brand-950/60 px-4 py-3 text-cream
-           placeholder:text-cream-dim/60 transition-colors duration-200
+    @apply w-full rounded-xl border border-surface-border bg-surface-sunken px-4 py-3 text-content
+           placeholder:text-content-dim/60 transition-colors duration-200
            focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/40;
   }
 
   /* Loading skeleton shimmer */
   .skeleton {
-    @apply relative overflow-hidden rounded-md bg-brand-700/40;
+    @apply relative overflow-hidden rounded-md bg-surface-border/40;
   }
   .skeleton::after {
     content: "";
     @apply absolute inset-0 -translate-x-full animate-shimmer
-           bg-gradient-to-r from-transparent via-white/5 to-transparent;
+           bg-gradient-to-r from-transparent via-content/10 to-transparent;
   }
 }
 

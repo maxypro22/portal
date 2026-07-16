@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X, Globe } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SocialIcons } from "@/components/ui/SocialIcons";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -36,8 +37,8 @@ export function Header() {
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-all duration-500",
         scrolled
-          ? "border-b border-white/10 bg-ink/95 backdrop-blur-md shadow-card"
-          : "bg-gradient-to-b from-ink via-ink/85 to-transparent"
+          ? "border-b border-surface-border bg-chrome-header/95 backdrop-blur-md shadow-card"
+          : "bg-gradient-to-b from-chrome-header via-chrome-header/85 to-transparent"
       )}
     >
       <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
@@ -52,8 +53,8 @@ export function Header() {
               className={cn(
                 "relative text-sm font-medium tracking-wide transition-colors after:absolute after:-bottom-1.5 after:left-0 after:h-px after:bg-gold after:transition-all after:duration-300",
                 isActive(item.href)
-                  ? "text-white after:w-full"
-                  : "text-white/75 hover:text-white after:w-0 hover:after:w-full"
+                  ? "text-content after:w-full"
+                  : "text-content-muted hover:text-content after:w-0 hover:after:w-full"
               )}
             >
               {item.label}
@@ -61,10 +62,11 @@ export function Header() {
           ))}
         </nav>
 
-        {/* Desktop right cluster: socials + Book a Table, العربية below */}
+        {/* Desktop right cluster: socials + theme toggle + Book a Table, العربية below */}
         <div className="hidden flex-col items-end gap-2.5 lg:flex">
           <div className="flex items-center gap-4">
             <SocialIcons tone="dark" />
+            <ThemeToggle />
             <Link href="/book" className="btn-gold px-5 py-2 text-sm">
               Book a Table
             </Link>
@@ -73,7 +75,7 @@ export function Header() {
             href="/"
             lang="ar"
             dir="rtl"
-            className="flex items-center gap-1.5 text-sm font-medium text-white/75 transition-colors hover:text-gold"
+            className="flex items-center gap-1.5 text-sm font-medium text-content-muted transition-colors hover:text-gold"
             title="العربية"
           >
             <Globe className="h-4 w-4" />
@@ -81,21 +83,24 @@ export function Header() {
           </a>
         </div>
 
-        {/* Mobile toggle */}
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-label={open ? "Close menu" : "Open menu"}
-          className="grid h-11 w-11 place-items-center rounded-full border border-white/20 text-white lg:hidden"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* Mobile: theme toggle + menu button */}
+        <div className="flex items-center gap-2 lg:hidden">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-label={open ? "Close menu" : "Open menu"}
+            className="grid h-11 w-11 place-items-center rounded-full border border-surface-border-strong text-content"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile menu */}
       <div
         className={cn(
-          "overflow-hidden border-t border-white/10 bg-ink/98 backdrop-blur-md transition-[max-height] duration-500 lg:hidden",
+          "overflow-hidden border-t border-surface-border bg-chrome-header/98 backdrop-blur-md transition-[max-height] duration-500 lg:hidden",
           open ? "max-h-[26rem]" : "max-h-0"
         )}
       >
@@ -108,7 +113,7 @@ export function Header() {
                 "rounded-lg px-3 py-3 text-base font-medium transition-colors",
                 isActive(item.href)
                   ? "bg-gold/15 text-gold"
-                  : "text-white/80 hover:bg-white/5 hover:text-white"
+                  : "text-content-muted hover:bg-surface-sunken hover:text-content"
               )}
             >
               {item.label}
@@ -118,7 +123,7 @@ export function Header() {
             href="/"
             lang="ar"
             dir="rtl"
-            className="rounded-lg px-3 py-3 text-base font-medium text-white/80 hover:bg-white/5 hover:text-white"
+            className="rounded-lg px-3 py-3 text-base font-medium text-content-muted hover:bg-surface-sunken hover:text-content"
           >
             العربية
           </a>

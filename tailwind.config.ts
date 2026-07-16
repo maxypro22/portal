@@ -48,6 +48,27 @@ const config: Config = {
           muted: "#d8cfc2",
           dim: "#a99f92",
         },
+        // Theme-aware tokens — driven by CSS variables in globals.css so a
+        // single [data-theme="light"/"dark"] attribute on <html> repaints
+        // every consumer at once. Distinct from `brand`/`cream` above (which
+        // stay fixed dark values, still used e.g. for text-brand-950 on gold
+        // buttons — that pairing must NOT invert with the theme).
+        surface: {
+          bg: "rgb(var(--surface-bg) / <alpha-value>)",
+          raised: "rgb(var(--surface-raised) / <alpha-value>)",
+          sunken: "rgb(var(--surface-sunken) / <alpha-value>)",
+          border: "rgb(var(--surface-border) / <alpha-value>)",
+          "border-strong": "rgb(var(--surface-border-strong) / <alpha-value>)",
+        },
+        content: {
+          DEFAULT: "rgb(var(--content) / <alpha-value>)",
+          muted: "rgb(var(--content-muted) / <alpha-value>)",
+          dim: "rgb(var(--content-dim) / <alpha-value>)",
+        },
+        chrome: {
+          header: "rgb(var(--chrome-header) / <alpha-value>)",
+          footer: "rgb(var(--chrome-footer) / <alpha-value>)",
+        },
         // Status colors for admin badges
         status: {
           pending: "#d9a441",

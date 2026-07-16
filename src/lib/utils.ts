@@ -68,6 +68,26 @@ export function fromDateKey(key: string): Date {
   return new Date(y, m - 1, d, 0, 0, 0, 0);
 }
 
+/**
+ * Build a 6-week (42-cell), Sunday-first grid for the month containing
+ * `viewDate`. Cells outside that month are `null`. Used by the booking
+ * wizard's calendar dropdown.
+ */
+export function buildMonthGrid(viewDate: Date): (Date | null)[] {
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const firstOfMonth = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const leadingBlanks = firstOfMonth.getDay(); // 0 = Sunday
+
+  const cells: (Date | null)[] = [];
+  for (let i = 0; i < leadingBlanks; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+  while (cells.length < 42) cells.push(null);
+  return cells;
+}
+
 /** Friendly date, e.g. "Thursday, 16 July 2026". */
 export function formatLongDate(date: Date): string {
   return date.toLocaleDateString("en-GB", {

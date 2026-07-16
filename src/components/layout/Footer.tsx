@@ -9,7 +9,7 @@ import { BRAND } from "@/lib/constants";
  */
 export function Footer() {
   return (
-    <footer className="relative mt-24 bg-cocoa text-cream">
+    <footer className="relative mt-24 border-t border-surface-border bg-chrome-footer text-content">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr_1fr] lg:items-start lg:gap-8">
           {/* Logo */}
@@ -28,7 +28,7 @@ export function Footer() {
                 <li key={phone}>
                   <a
                     href={`tel:${phone.replace(/\s/g, "")}`}
-                    className="text-cream/90 transition-colors hover:text-gold"
+                    className="text-content/90 transition-colors hover:text-gold"
                   >
                     {phone}
                   </a>
@@ -43,8 +43,8 @@ export function Footer() {
               <Briefcase className="h-5 w-5" />
               Working hours
             </h4>
-            <p className="mt-4 text-sm leading-relaxed text-cream/90">{BRAND.hoursLine}</p>
-            <p className="text-sm leading-relaxed text-cream/90">{BRAND.hoursLine2}</p>
+            <p className="mt-4 text-sm leading-relaxed text-content/90">{BRAND.hoursLine}</p>
+            <p className="text-sm leading-relaxed text-content/90">{BRAND.hoursLine2}</p>
             <SocialIcons tone="footer" size="md" className="mt-5" />
           </div>
         </div>
@@ -53,9 +53,9 @@ export function Footer() {
         <div className="my-8 h-px w-full bg-gradient-to-r from-transparent via-gold/50 to-transparent" />
 
         {/* Copyright */}
-        <div className="text-center text-sm text-cream/80">
+        <div className="text-center text-sm text-content/80">
           <p>
-            Copyright © 2026 <span className="font-semibold text-cream">Steak Town</span> All Rights
+            Copyright © 2026 <span className="font-semibold text-content">Steak Town</span> All Rights
             Reserved
           </p>
         </div>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import { Providers } from "@/components/Providers";
+import { ThemeProvider, NO_FLASH_THEME_SCRIPT } from "@/components/ThemeProvider";
 import "./globals.css";
 
 // Elegant serif for headings, clean sans for body.
@@ -34,9 +35,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" dir="ltr" className={`${playfair.variable} ${inter.variable}`}>
-      <body className="min-h-screen bg-brand-800 text-cream">
-        <Providers>{children}</Providers>
+    <html lang="en" dir="ltr" className={`${playfair.variable} ${inter.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Sets data-theme before first paint — avoids a dark/light flash on load. */}
+        <script dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME_SCRIPT }} />
+      </head>
+      <body className="min-h-screen bg-surface-bg text-content" suppressHydrationWarning>
+        <ThemeProvider>
+          <Providers>{children}</Providers>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -54,15 +54,15 @@ export function FloorPlan({
   return (
     <div className={cn("w-full", className)}>
       {/* Legend */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-cream-dim">
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-content-dim">
         <LegendDot className="border-2 border-gold bg-transparent" label="Available" />
         <LegendDot className="border-2 border-gold bg-gold-gradient" label="Selected" />
-        <LegendDot className="border-2 border-brand-600 bg-brand-700 opacity-50" label="Unavailable" />
-        <LegendDot className="border border-dashed border-cream-dim/40 bg-transparent" label="Too small" />
+        <LegendDot className="border-2 border-surface-border-strong bg-surface-border opacity-50" label="Unavailable" />
+        <LegendDot className="border border-dashed border-content-dim/40 bg-transparent" label="Too small" />
       </div>
 
       {/* Canvas */}
-      <div className="relative w-full overflow-hidden rounded-2xl border border-brand-600/50 bg-gradient-to-br from-brand-900 to-brand-950 shadow-card">
+      <div className="relative w-full overflow-hidden rounded-2xl border border-surface-border bg-gradient-to-br from-surface-raised to-surface-sunken shadow-card">
         <div className="floorplan-canvas relative w-full">
           {/* Section zones */}
           {sections.map((s) => {
@@ -70,10 +70,10 @@ export function FloorPlan({
             return (
               <div
                 key={s}
-                className="absolute top-[4%] bottom-[4%] rounded-xl border border-brand-600/30 bg-brand-800/30"
+                className="absolute top-[4%] bottom-[4%] rounded-xl border border-surface-border/30 bg-surface-bg/30"
                 style={{ left: `${zone.x}%`, width: `${zone.w}%` }}
               >
-                <span className="absolute left-1/2 top-2 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold uppercase tracking-luxe text-cream-dim/70">
+                <span className="absolute left-1/2 top-2 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold uppercase tracking-luxe text-content-dim/70">
                   {SECTION_META[s].label}
                 </span>
               </div>
@@ -81,7 +81,7 @@ export function FloorPlan({
           })}
 
           {/* Decorative entrance marker */}
-          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] uppercase tracking-luxe text-cream-dim/40">
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] uppercase tracking-luxe text-content-dim/40">
             ▲ Entrance
           </div>
 
@@ -102,7 +102,7 @@ export function FloorPlan({
       </div>
 
       {/* Hover / selection detail */}
-      <div className="mt-3 flex min-h-[1.5rem] items-center justify-center text-sm text-cream-dim">
+      <div className="mt-3 flex min-h-[1.5rem] items-center justify-center text-sm text-content-dim">
         {hovered ? (
           <span>
             <span className="font-semibold text-gold">Table {hovered.number}</span>
@@ -112,7 +112,7 @@ export function FloorPlan({
             {SECTION_META[hovered.section as Section]?.label ?? hovered.section}
           </span>
         ) : (
-          <span className="text-cream-dim/60">Hover a table to see details</span>
+          <span className="text-content-dim/60">Hover a table to see details</span>
         )}
       </div>
     </div>
@@ -148,10 +148,10 @@ function TableShape({
   const stateClass = selected
     ? "border-gold bg-gold-gradient text-brand-950 shadow-gold"
     : unavailable
-      ? "border-brand-600 bg-brand-700/60 text-cream-dim/50 opacity-60"
+      ? "border-surface-border-strong bg-surface-border/60 text-content-dim/50 opacity-60"
       : tooSmall
-        ? "border-dashed border-cream-dim/40 bg-brand-800/40 text-cream-dim/50"
-        : "border-gold bg-brand-900/70 text-cream hover:bg-gold/15 hover:shadow-gold";
+        ? "border-dashed border-content-dim/40 bg-surface-bg/40 text-content-dim/50"
+        : "border-gold bg-surface-raised/70 text-content hover:bg-gold/15 hover:shadow-gold";
 
   return (
     <button
@@ -209,7 +209,7 @@ function SeatPips({
   dim?: boolean;
   selected?: boolean;
 }) {
-  const color = selected ? "bg-gold-dark" : dim ? "bg-brand-600" : "bg-gold/70";
+  const color = selected ? "bg-gold-dark" : dim ? "bg-surface-border-strong" : "bg-gold/70";
 
   if (shape === "round") {
     // Distribute pips evenly around a circle.
