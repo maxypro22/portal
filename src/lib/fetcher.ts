@@ -22,7 +22,18 @@ export async function apiFetch<T = unknown>(
   }
 
   if (!res.ok || json.ok === false) {
-    throw new Error(json.error || `Request failed (${res.status})`);
+    const fieldErrors = formatFieldErrors(json.details);
+    const message = json.error || `Request failed (${res.status})`;
+    throw new Error(fieldErrors ? `${message}: ${fieldErrors}` : message);
   }
   return (json.data ?? (json as unknown)) as T;
+}
+
+/** Turn Zod's flattened fieldErrors ({ field: [msg, ...] }) into "field — msg" text. */
+function formatFieldErrors(details: unknown): string | null {
+  if (!details || typeof details !== "object") return null;
+  const parts = Object.entries(details as Record<string, unknown>)
+    .filter(([, messages]) => Array.isArray(messages) && messages.length > 0)
+    .map(([field, messages]) => `${field} — ${(messages as string[]).join(", ")}`);
+  return parts.length ? parts.join("; ") : null;
 }
