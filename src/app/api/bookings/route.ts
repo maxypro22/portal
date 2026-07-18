@@ -5,13 +5,7 @@ import { createBookingSchema } from "@/lib/validations";
 import { BookingRequestError, pickAvailableTable, runSerializable } from "@/lib/booking";
 import { getWorkingHours } from "@/lib/hours";
 import { DEFAULT_DURATION_MINUTES } from "@/lib/constants";
-import {
-  fromDateKey,
-  generateReference,
-  generateSlotsForDay,
-  timeToMinutes,
-  toDateKey,
-} from "@/lib/utils";
+import { fromDateKey, generateReference, timeToMinutes, toDateKey } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -71,10 +65,12 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/bookings — PUBLIC create.
- * Guests choose location, party size, date, and time only — a table is
- * auto-assigned (smallest fitting, available table) inside the same
- * Serializable transaction that creates the booking, so two guests
- * requesting the same slot can't both be handed the same table.
+ * Guests enter their own preferred time freely — there's no slot list and
+ * no availability/overlap restriction. The only time constraint is that it
+ * falls within the restaurant's working hours (with room for the full
+ * dining window before close) and isn't in the past. A table is still
+ * auto-assigned (smallest fitting one) for internal record-keeping, but its
+ * assignment never blocks the reservation.
  */
 export async function POST(req: Request) {
   try {
@@ -83,8 +79,13 @@ export async function POST(req: Request) {
 
     const day = fromDateKey(input.date);
     const hoursMap = await getWorkingHours();
-    const validSlots = generateSlotsForDay(day.getDay(), DEFAULT_DURATION_MINUTES, hoursMap);
-    if (!validSlots.includes(input.timeSlot)) {
+    const dayHours = hoursMap[day.getDay()];
+    if (!dayHours) {
+      return apiError("We're closed on the selected date.", 400);
+    }
+    const requestedMinutes = timeToMinutes(input.timeSlot);
+    const lastStart = dayHours.close - DEFAULT_DURATION_MINUTES;
+    if (requestedMinutes < dayHours.open || requestedMinutes > lastStart) {
       return apiError("Selected time is outside our working hours.", 400);
     }
 
@@ -102,20 +103,15 @@ export async function POST(req: Request) {
     const year = day.getFullYear();
 
     const booking = await runSerializable(async (tx) => {
-      // 1) Auto-assign the best-fit, available table for this party/slot.
+      // 1) Auto-assign the best-fit table for this party size (record-keeping
+      // only — never blocks the booking).
       const table = await pickAvailableTable(
-        {
-          locationId: input.locationId,
-          partySize: input.partySize,
-          dateKey: input.date,
-          timeSlot: input.timeSlot,
-          durationMinutes: DEFAULT_DURATION_MINUTES,
-        },
+        { locationId: input.locationId, partySize: input.partySize },
         tx
       );
       if (!table) {
         throw new BookingRequestError(
-          "Sorry, no table is available for that party size at this time. Please try another time or date.",
+          "Sorry, we don't have a table large enough for that party size at this location.",
           409
         );
       }

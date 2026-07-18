@@ -8,8 +8,8 @@ export type { DayHours, HoursMap };
  * Falls back to the hardcoded defaults if the WorkingHours table hasn't been
  * migrated/seeded yet (see prisma/add-working-hours.sql), so booking still
  * works before that script runs. A day marked closed (isOpen=false) is
- * simply absent from the returned map — generateSlotsForDay already treats
- * a missing day as "no slots," so no special-casing is needed downstream.
+ * simply absent from the returned map — callers treat a missing day as
+ * "closed," so no special-casing is needed downstream.
  */
 export async function getWorkingHours(): Promise<HoursMap> {
   const rows = await prisma.workingHours.findMany();

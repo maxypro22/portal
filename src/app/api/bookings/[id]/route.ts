@@ -1,9 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { apiOk, apiError, handleRouteError, requireAdmin } from "@/lib/api";
 import { updateBookingSchema } from "@/lib/validations";
-import { BookingRequestError, isSlotAvailable, runSerializable } from "@/lib/booking";
-import { DEFAULT_DURATION_MINUTES } from "@/lib/constants";
-import { fromDateKey, toDateKey } from "@/lib/utils";
+import { BookingRequestError, runSerializable } from "@/lib/booking";
+import { fromDateKey } from "@/lib/utils";
 
 type Params = { params: { id: string } };
 
@@ -24,11 +23,9 @@ export async function GET(_req: Request, { params }: Params) {
 
 /**
  * PATCH /api/bookings/[id] — admin update (status change, edit, reschedule).
- *
- * When rescheduling (table/date/time changes), the availability re-check and
- * the update itself run inside a single Serializable transaction — same
- * reasoning as booking creation: a plain check-then-write has a race window
- * under concurrent edits, Postgres closes it for us.
+ * There's no availability/overlap restriction — date, time, and table can be
+ * changed freely. If the table is explicitly reassigned, only its seating
+ * capacity is checked against the party size.
  */
 export async function PATCH(req: Request, { params }: Params) {
   try {
@@ -40,36 +37,13 @@ export async function PATCH(req: Request, { params }: Params) {
       const existing = await tx.booking.findUnique({ where: { id: params.id } });
       if (!existing) throw new BookingRequestError("Booking not found.", 404);
 
-      const rescheduling =
-        data.tableId !== undefined || data.date !== undefined || data.timeSlot !== undefined;
-
-      if (rescheduling) {
-        const tableId = data.tableId ?? existing.tableId;
-        const dateKey = data.date ?? toDateKey(existing.date);
-        const timeSlot = data.timeSlot ?? existing.timeSlot;
-
-        // Capacity check when moving tables.
-        if (data.tableId) {
-          const table = await tx.table.findUnique({ where: { id: data.tableId } });
-          if (!table) throw new BookingRequestError("Target table not found.", 400);
-          const partySize = data.partySize ?? existing.partySize;
-          if (partySize > table.capacity) {
-            throw new BookingRequestError(`Table ${table.number} seats only ${table.capacity}.`, 400);
-          }
+      if (data.tableId) {
+        const table = await tx.table.findUnique({ where: { id: data.tableId } });
+        if (!table) throw new BookingRequestError("Target table not found.", 400);
+        const partySize = data.partySize ?? existing.partySize;
+        if (partySize > table.capacity) {
+          throw new BookingRequestError(`Table ${table.number} seats only ${table.capacity}.`, 400);
         }
-
-        const free = await isSlotAvailable(
-          {
-            locationId: existing.locationId,
-            tableId,
-            dateKey,
-            timeSlot,
-            durationMinutes: DEFAULT_DURATION_MINUTES,
-            ignoreBookingId: existing.id,
-          },
-          tx
-        );
-        if (!free) throw new BookingRequestError("That table/time is already booked.", 409);
       }
 
       return tx.booking.update({

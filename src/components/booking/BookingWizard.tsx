@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -32,13 +32,19 @@ import { Skeleton, EmptyState } from "@/components/ui/Primitives";
 import { apiFetch } from "@/lib/fetcher";
 import { guestDetailsSchema, type GuestDetailsInput } from "@/lib/validations";
 import { parseSelectedMoodItems } from "@/lib/menuData";
-import { MAX_ADVANCE_BOOKING_DAYS, MAX_PARTY_SIZE, MIN_PARTY_SIZE } from "@/lib/constants";
+import {
+  DEFAULT_DURATION_MINUTES,
+  MAX_ADVANCE_BOOKING_DAYS,
+  MAX_PARTY_SIZE,
+  MIN_PARTY_SIZE,
+} from "@/lib/constants";
 import {
   buildMonthGrid,
   cn,
   formatTime12h,
   formatLongDate,
   fromDateKey,
+  minutesToTime,
   normalizeQatarPhone,
   toDateKey,
 } from "@/lib/utils";
@@ -51,7 +57,7 @@ type Location = {
   imageUrl: string | null;
   _count?: { tables: number };
 };
-type Slot = { time: string; past: boolean; available: boolean };
+type DayHours = { dayOfWeek: number; isOpen: boolean; openMinutes: number; closeMinutes: number };
 type BookingResult = {
   reference: string;
   timeSlot: string;
@@ -156,7 +162,6 @@ export function BookingWizard() {
         )}
         {step === 2 && location && (
           <GuestsDateTimeStep
-            location={location}
             partySize={partySize}
             onPartyChange={handlePartySizeChange}
             dateKey={dateKey}
@@ -359,11 +364,12 @@ function LocationDropdown({
 /**
  * Combined Guests / Date / Time picker — one pill-shaped bar with three
  * segments, each opening a dropdown panel below (guest count list, a real
- * month calendar, and a scrollable time list). No table is chosen here —
- * one is auto-assigned to fit the party size when the booking is submitted.
+ * month calendar, and a free time input). Guests enter whatever time they'd
+ * like to come — there's no availability restriction, only working hours.
+ * No table is chosen here either — one is auto-assigned for record-keeping
+ * when the booking is submitted, and never blocks the reservation.
  */
 function GuestsDateTimeStep({
-  location,
   partySize,
   onPartyChange,
   dateKey,
@@ -371,7 +377,6 @@ function GuestsDateTimeStep({
   onPickDate,
   onPickTime,
 }: {
-  location: Location;
   partySize: number;
   onPartyChange: (n: number) => void;
   dateKey: string | null;
@@ -382,42 +387,25 @@ function GuestsDateTimeStep({
   const [open, setOpen] = useState<"guests" | "date" | "time" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Days of week the restaurant is closed entirely (set from /admin/hours) —
-  // location-independent, fetched once, used to grey out every matching
-  // weekday in the calendar (e.g. every Sunday if Sunday is disabled).
-  const [closedDays, setClosedDays] = useState<Set<number>>(new Set());
+  // Per-weekday working hours (set from /admin/hours) — used to grey out
+  // closed weekdays in the calendar and to bound the free time input to
+  // hours the restaurant is actually open on the selected date.
+  const [hoursByDay, setHoursByDay] = useState<DayHours[]>([]);
   useEffect(() => {
-    apiFetch<{ dayOfWeek: number; isOpen: boolean }[]>("/api/working-hours")
-      .then((days) => setClosedDays(new Set(days.filter((d) => !d.isOpen).map((d) => d.dayOfWeek))))
-      .catch(() => setClosedDays(new Set()));
+    apiFetch<DayHours[]>("/api/working-hours")
+      .then(setHoursByDay)
+      .catch(() => setHoursByDay([]));
   }, []);
 
-  const [slots, setSlots] = useState<Slot[] | null>(null);
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [slotsError, setSlotsError] = useState<string | null>(null);
-
-  const loadSlots = useCallback(
-    async (key: string, guests: number) => {
-      setLoadingSlots(true);
-      setSlotsError(null);
-      try {
-        const data = await apiFetch<{ slots: Slot[] }>(
-          `/api/availability?locationId=${location.id}&date=${key}&partySize=${guests}`
-        );
-        setSlots(data.slots);
-      } catch (e) {
-        setSlotsError(e instanceof Error ? e.message : "Failed to load times");
-      } finally {
-        setLoadingSlots(false);
-      }
-    },
-    [location.id]
+  const closedDays = useMemo(
+    () => new Set(hoursByDay.filter((d) => !d.isOpen).map((d) => d.dayOfWeek)),
+    [hoursByDay]
   );
-
-  useEffect(() => {
-    if (dateKey) loadSlots(dateKey, partySize);
-    else setSlots(null);
-  }, [dateKey, partySize, loadSlots]);
+  const selectedDayHours = useMemo(() => {
+    if (!dateKey) return null;
+    const dow = fromDateKey(dateKey).getDay();
+    return hoursByDay.find((d) => d.dayOfWeek === dow && d.isOpen) ?? null;
+  }, [dateKey, hoursByDay]);
 
   // Close the open panel on outside click.
   useEffect(() => {
@@ -437,7 +425,7 @@ function GuestsDateTimeStep({
       <StepHeader
         icon={<CalendarDays className="h-5 w-5" />}
         title="Guests, Date & Time"
-        subtitle="Reservations run for 2 hours. We'll seat you at the best available table."
+        subtitle="Reservations run for 2 hours. Tell us your preferred time — we'll do our best to seat you then."
       />
 
       <div ref={ref} className="relative">
@@ -478,13 +466,12 @@ function GuestsDateTimeStep({
                 onSelect={(k) => { onPickDate(k); setOpen(null); }}
               />
             )}
-            {open === "time" && (
-              <TimesList
-                slots={slots}
-                loading={loadingSlots}
-                error={slotsError}
+            {open === "time" && dateKey && (
+              <TimePicker
+                dateKey={dateKey}
+                dayHours={selectedDayHours}
                 value={timeSlot}
-                onSelect={(t) => { onPickTime(t); setOpen(null); }}
+                onSelect={onPickTime}
               />
             )}
           </div>
@@ -492,7 +479,7 @@ function GuestsDateTimeStep({
       </div>
 
       <p className="mt-4 text-xs text-content-dim/70">
-        Struck-through times are already fully booked or have passed.
+        Enter any time you'd like to come within our working hours.
       </p>
     </div>
   );
@@ -565,58 +552,68 @@ function GuestsList({
   );
 }
 
-/** Scrollable time-slot dropdown list. */
-function TimesList({
-  slots,
-  loading,
-  error,
+/**
+ * Free time entry, bounded only by the restaurant's working hours for the
+ * selected date (with room for the full 2-hour dining window before close)
+ * — no availability/overlap restriction. Guests type or pick whatever time
+ * they'd like to come.
+ */
+function TimePicker({
+  dateKey,
+  dayHours,
   value,
   onSelect,
 }: {
-  slots: Slot[] | null;
-  loading: boolean;
-  error: string | null;
+  dateKey: string;
+  dayHours: DayHours | null;
   value: string | null;
   onSelect: (t: string) => void;
 }) {
-  if (error) return <div className="p-4"><EmptyState title="Couldn't load times" description={error} /></div>;
-  if (loading || slots === null) {
+  if (!dayHours) {
     return (
-      <div className="space-y-2 p-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-9 w-full rounded-lg" />
-        ))}
+      <div className="p-4">
+        <EmptyState title="Closed on this day" description="Please choose another date." />
       </div>
     );
   }
-  if (slots.length === 0) {
-    return <div className="p-4"><EmptyState title="Closed on this day" description="Please choose another date." /></div>;
+
+  const isToday = dateKey === toDateKey(new Date());
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const lastStart = dayHours.closeMinutes - DEFAULT_DURATION_MINUTES;
+  const earliest = isToday ? Math.max(dayHours.openMinutes, nowMinutes + 1) : dayHours.openMinutes;
+
+  if (earliest > lastStart) {
+    return (
+      <div className="p-4">
+        <EmptyState title="No time left today" description="Please choose another date." />
+      </div>
+    );
   }
 
+  const minStr = minutesToTime(earliest);
+  const maxStr = minutesToTime(lastStart);
+
   return (
-    <div className="max-h-72 overflow-y-auto py-2">
-      {slots.map((slot) => {
-        const disabled = !slot.available;
-        const active = value === slot.time;
-        return (
-          <button
-            key={slot.time}
-            type="button"
-            disabled={disabled}
-            onClick={() => onSelect(slot.time)}
-            className={cn(
-              "flex w-full items-center justify-center px-4 py-2.5 text-sm font-medium transition-colors",
-              active
-                ? "bg-gold-gradient text-brand-950"
-                : disabled
-                  ? "cursor-not-allowed text-content-dim/40 line-through"
-                  : "text-content-muted hover:bg-surface-sunken hover:text-content"
-            )}
-          >
-            {formatTime12h(slot.time)}
-          </button>
-        );
-      })}
+    <div className="p-4">
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-content-muted">
+          Preferred arrival time
+        </span>
+        <input
+          type="time"
+          value={value ?? ""}
+          min={minStr}
+          max={maxStr}
+          onChange={(e) => e.target.value && onSelect(e.target.value)}
+          className="input-base"
+          autoFocus
+        />
+      </label>
+      <p className="mt-2 text-xs text-content-dim">
+        Open {formatTime12h(minutesToTime(dayHours.openMinutes))} –{" "}
+        {formatTime12h(minutesToTime(dayHours.closeMinutes))}. Pick any time in that window.
+      </p>
     </div>
   );
 }
