@@ -800,7 +800,7 @@ function DetailsStep({
         <Field label="Full Name" icon={<User className="h-4 w-4" />} error={errors.guestName?.message}>
           <input
             {...register("guestName")}
-            placeholder="e.g. Khalid Al-Marri"
+            placeholder="Khalid Ali"
             className="input-base"
             autoComplete="name"
           />
@@ -817,7 +817,7 @@ function DetailsStep({
         </Field>
 
         <div className="sm:col-span-2">
-          <Field label="Email" icon={<Mail className="h-4 w-4" />} error={errors.guestEmail?.message}>
+          <Field label="Email (optional)" icon={<Mail className="h-4 w-4" />} error={errors.guestEmail?.message}>
             <input
               {...register("guestEmail")}
               placeholder="you@example.com"
@@ -936,7 +936,9 @@ function ConfirmStep({
     { icon: <Clock className="h-4 w-4" />, label: "Time", value: `${formatTime12h(timeSlot)} (2 hrs)` },
     { icon: <User className="h-4 w-4" />, label: "Name", value: details.guestName },
     { icon: <Phone className="h-4 w-4" />, label: "Phone", value: normalizeQatarPhone(details.guestPhone) },
-    { icon: <Mail className="h-4 w-4" />, label: "Email", value: details.guestEmail },
+    ...(details.guestEmail
+      ? [{ icon: <Mail className="h-4 w-4" />, label: "Email", value: details.guestEmail }]
+      : []),
   ];
 
   return (

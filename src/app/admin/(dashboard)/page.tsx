@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarCheck, CalendarClock, Users, Clock } from "lucide-react";
+import { CalendarCheck, CalendarClock, Users, Clock, BellRing } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, StatCard } from "@/components/admin/AdminUI";
 import { AdminChart, type ChartPoint } from "@/components/admin/AdminChart";
@@ -12,11 +12,16 @@ export const metadata = { title: "Overview" };
 export const dynamic = "force-dynamic"; // always fresh dashboard data
 
 const ACTIVE: BookingStatus[] = ["PENDING", "CONFIRMED", "COMPLETED"];
+const CHART_DAYS_BEFORE = 5;
+const CHART_DAYS_AFTER = 5;
+// Defensive cap — a single day's timeline list should never need to render
+// more rows than this; protects the page from an unbounded scan/render if a
+// single day ever received an unusually large number of bookings.
+const TIMELINE_LIMIT = 200;
 
 const PERIODS = [
   { key: "all", label: "All" },
-  { key: "day", label: "Day" },
-  { key: "week", label: "Week" },
+  { key: "today", label: "Today" },
   { key: "month", label: "Month" },
 ] as const;
 type PeriodKey = (typeof PERIODS)[number]["key"];
@@ -28,17 +33,10 @@ function startOfDay(d: Date) {
 /**
  * Date range for the selected stat-card period. `start`/`end` are both null
  * for "all" — the queries below treat that as "no date filter," i.e. the
- * all-time total, which is what "remove the filter" should show.
+ * all-time total.
  */
 function getPeriodRange(period: PeriodKey, today: Date) {
-  if (period === "day") return { start: today, end: today, label: "today" };
-  if (period === "week") {
-    const start = new Date(today);
-    start.setDate(today.getDate() - today.getDay()); // back to Sunday
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    return { start, end, label: "this week" };
-  }
+  if (period === "today") return { start: today, end: today, label: "today" };
   if (period === "month") {
     const start = new Date(today.getFullYear(), today.getMonth(), 1);
     const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -54,6 +52,7 @@ export default async function OverviewPage({
 }) {
   const now = new Date();
   const today = startOfDay(now);
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
   const period: PeriodKey = PERIODS.some((p) => p.key === searchParams.period)
     ? (searchParams.period as PeriodKey)
@@ -61,44 +60,68 @@ export default async function OverviewPage({
   const { start, end, label: periodLabel } = getPeriodRange(period, today);
   const periodDateFilter = start && end ? { date: { gte: start, lte: end } } : {};
 
+  const chartStart = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() - CHART_DAYS_BEFORE
+  );
+  const chartEnd = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() + CHART_DAYS_AFTER
+  );
+
   // --- Parallel data fetch ---
-  const [periodBookings, upcomingCount, last14, todaysTimeline] = await Promise.all([
-    prisma.booking.findMany({
-      where: { ...periodDateFilter, status: { in: ACTIVE } },
-      select: { partySize: true },
-    }),
-    prisma.booking.count({
-      where: {
-        date: { gte: today, ...(end ? { lte: end } : {}) },
-        status: { in: ["PENDING", "CONFIRMED"] },
-      },
-    }),
-    prisma.booking.findMany({
-      where: {
-        date: { gte: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 13) },
-        status: { in: ACTIVE },
-      },
-      select: { date: true },
-    }),
-    prisma.booking.findMany({
-      where: { date: today },
-      orderBy: { timeSlot: "asc" },
-      include: {
-        table: { select: { number: true, section: true } },
-        location: { select: { name: true } },
-      },
-    }),
-  ]);
+  // periodStats uses a DB-level aggregate (not findMany + JS reduce) so it
+  // stays fast for the "All" filter even once bookings run into the
+  // hundreds of thousands — Postgres computes count/sum, only two numbers
+  // cross the wire instead of every row.
+  const [periodStats, upcomingCount, todayCreatedCount, chartRows, todaysTimeline] =
+    await Promise.all([
+      prisma.booking.aggregate({
+        where: { ...periodDateFilter, status: { in: ACTIVE } },
+        _count: { _all: true },
+        _sum: { partySize: true },
+      }),
+      prisma.booking.count({
+        where: {
+          date: { gte: today, ...(end ? { lte: end } : {}) },
+          status: { in: ["PENDING", "CONFIRMED"] },
+        },
+      }),
+      // Bookings *placed* today (by createdAt), independent of the period
+      // filter and of which date they're for — resets naturally every day
+      // since `today`/`tomorrow` are recomputed on every server render.
+      prisma.booking.count({
+        where: { createdAt: { gte: today, lt: tomorrow } },
+      }),
+      prisma.booking.findMany({
+        where: {
+          date: { gte: chartStart, lte: chartEnd },
+          status: { in: ACTIVE },
+        },
+        select: { date: true },
+      }),
+      prisma.booking.findMany({
+        where: { date: today },
+        orderBy: { timeSlot: "asc" },
+        take: TIMELINE_LIMIT,
+        include: {
+          table: { select: { number: true, section: true } },
+          location: { select: { name: true } },
+        },
+      }),
+    ]);
 
-  const totalGuests = periodBookings.reduce((sum, b) => sum + b.partySize, 0);
+  const totalGuests = periodStats._sum.partySize ?? 0;
 
-  // Build 14-day chart buckets
+  // Build chart buckets: 5 days before today through 5 days after today.
   const buckets = new Map<string, number>();
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+  for (let i = -CHART_DAYS_BEFORE; i <= CHART_DAYS_AFTER; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
     buckets.set(toDateKey(d), 0);
   }
-  for (const b of last14) {
+  for (const b of chartRows) {
     const key = toDateKey(b.date);
     if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
   }
@@ -115,6 +138,15 @@ export default async function OverviewPage({
     <div>
       <PageHeader
         title="Overview"
+        badge={
+          <span
+            title="Bookings placed today — resets to 0 each new day"
+            className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold"
+          >
+            <BellRing className="h-3.5 w-3.5" />
+            {todayCreatedCount} booked today
+          </span>
+        }
         subtitle={now.toLocaleDateString("en-GB", {
           weekday: "long",
           day: "numeric",
@@ -145,7 +177,7 @@ export default async function OverviewPage({
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
           label="Bookings"
-          value={periodBookings.length}
+          value={periodStats._count._all}
           hint={`${periodLabel[0].toUpperCase()}${periodLabel.slice(1)}`}
           icon={<CalendarCheck className="h-5 w-5" />}
           accent="gold"
@@ -170,7 +202,9 @@ export default async function OverviewPage({
         {/* Chart */}
         <div className="card p-6 lg:col-span-3">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-serif text-lg font-semibold text-content">Bookings — Last 14 Days</h2>
+            <h2 className="font-serif text-lg font-semibold text-content">
+              Bookings — 5 Days Before &amp; After Today
+            </h2>
             <span className="text-xs text-content-dim">Active reservations</span>
           </div>
           <AdminChart data={chartData} />

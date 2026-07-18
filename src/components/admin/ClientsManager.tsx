@@ -116,7 +116,7 @@ export function ClientsManager() {
               </thead>
               <tbody className="divide-y divide-brand-600/30">
                 {data?.clients.map((c) => (
-                  <tr key={c.email} className="transition-colors hover:bg-surface-sunken/30">
+                  <tr key={c.phone} className="transition-colors hover:bg-surface-sunken/30">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gold/15 font-serif text-sm font-semibold text-gold">
@@ -135,13 +135,17 @@ export function ClientsManager() {
                       </a>
                     </td>
                     <td className="px-4 py-3">
-                      <a
-                        href={`mailto:${c.email}`}
-                        className="flex items-center gap-2 text-content-muted transition-colors hover:text-gold"
-                      >
-                        <Mail className="h-3.5 w-3.5 text-gold/70" />
-                        {c.email}
-                      </a>
+                      {c.email ? (
+                        <a
+                          href={`mailto:${c.email}`}
+                          className="flex items-center gap-2 text-content-muted transition-colors hover:text-gold"
+                        >
+                          <Mail className="h-3.5 w-3.5 text-gold/70" />
+                          {c.email}
+                        </a>
+                      ) : (
+                        <span className="text-content-dim/60">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-content-muted">
                       {c.bookings}

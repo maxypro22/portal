@@ -86,7 +86,7 @@ model Booking {
   tableId         String
   guestName       String
   guestPhone      String
-  guestEmail      String
+  guestEmail      String?
   partySize       Int
   date            DateTime
   timeSlot        String
@@ -102,6 +102,9 @@ model Booking {
   @@index([locationId, date])
   @@index([tableId, date])
   @@index([status])
+  @@index([date])
+  @@index([guestPhone])
+  @@index([createdAt])
 }
 
 // -----------------------------------------------------------------------------

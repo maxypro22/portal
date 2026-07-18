@@ -37,7 +37,7 @@ export const createBookingSchema = z.object({
   locationId: z.string().min(1, "Please select a location"),
   guestName: z.string().trim().min(2, "Please enter your full name").max(80),
   guestPhone: qatarPhoneSchema,
-  guestEmail: z.string().trim().email("Enter a valid email address"),
+  guestEmail: z.string().trim().email("Enter a valid email address").optional().or(z.literal("")),
   partySize: z
     .number()
     .int()
@@ -65,7 +65,7 @@ export const updateBookingSchema = z.object({
   status: z.enum(BOOKING_STATUSES).optional(),
   guestName: z.string().trim().min(2).max(80).optional(),
   guestPhone: qatarPhoneSchema.optional(),
-  guestEmail: z.string().trim().email().optional(),
+  guestEmail: z.string().trim().email().optional().or(z.literal("")),
   partySize: z.number().int().min(MIN_PARTY_SIZE).max(MAX_PARTY_SIZE).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   timeSlot: z.string().regex(/^\d{2}:\d{2}$/).optional(),

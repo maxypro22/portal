@@ -131,7 +131,7 @@ export async function POST(req: Request) {
               tableId: table.id,
               guestName: input.guestName,
               guestPhone: input.guestPhone,
-              guestEmail: input.guestEmail,
+              guestEmail: input.guestEmail || null,
               partySize: input.partySize,
               date: day,
               timeSlot: input.timeSlot,

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { apiOk, handleRouteError, requireAdmin } from "@/lib/api";
 
@@ -5,9 +6,15 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/clients — ADMIN.
- * There is no separate Customer table; clients are derived from bookings,
- * grouped by email (the stable identifier). Returns each unique customer's
- * name, phone, email, total bookings, total guests, and last visit date.
+ * There is no separate Customer table; clients are derived from bookings.
+ * Grouped by phone (mandatory on every booking — email is optional, so it
+ * can't be used as the identity key without accidentally merging every
+ * guest who skipped email into one "client").
+ *
+ * Scales with table size: grouping/aggregation runs in Postgres (indexed on
+ * guestPhone), not by loading every booking row into Node memory. Only the
+ * current page's canonical name/email is fetched afterwards, bounded to a
+ * handful of phone numbers.
  *
  * Query: q (search), page, pageSize
  */
@@ -15,84 +22,67 @@ export async function GET(req: Request) {
   try {
     await requireAdmin();
     const { searchParams } = new URL(req.url);
-    const q = searchParams.get("q")?.trim().toLowerCase() ?? "";
+    const q = searchParams.get("q")?.trim() ?? "";
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
     const pageSize = Math.min(50, Math.max(5, parseInt(searchParams.get("pageSize") ?? "10", 10)));
 
-    // Pull the lightweight guest fields from every booking and aggregate in JS.
-    const bookings = await prisma.booking.findMany({
-      select: {
-        guestName: true,
-        guestPhone: true,
-        guestEmail: true,
-        partySize: true,
-        date: true,
-        createdAt: true,
-      },
+    const where: Prisma.BookingWhereInput = q
+      ? {
+          OR: [
+            { guestName: { contains: q, mode: "insensitive" } },
+            { guestPhone: { contains: q, mode: "insensitive" } },
+            { guestEmail: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : {};
+
+    // Distinct-client count for pagination — DB-level, index-backed on guestPhone.
+    const distinct = await prisma.booking.groupBy({ by: ["guestPhone"], where });
+    const total = distinct.length;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+
+    // Aggregate stats per phone number, DB-side (count/sum/max), paginated.
+    const grouped = await prisma.booking.groupBy({
+      by: ["guestPhone"],
+      where,
+      _count: { _all: true },
+      _sum: { partySize: true },
+      _max: { date: true },
+      orderBy: { _max: { date: "desc" } },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
-    type Client = {
-      name: string;
-      phone: string;
-      email: string;
-      bookings: number;
-      totalGuests: number;
-      lastVisit: string; // ISO date
-      _sortKey: number; // for picking canonical name/phone (latest booking)
-    };
-
-    const map = new Map<string, Client>();
-    for (const b of bookings) {
-      const key = b.guestEmail.trim().toLowerCase();
-      const stamp = b.createdAt.getTime();
-      const existing = map.get(key);
-      if (!existing) {
-        map.set(key, {
-          name: b.guestName,
-          phone: b.guestPhone,
-          email: b.guestEmail,
-          bookings: 1,
-          totalGuests: b.partySize,
-          lastVisit: b.date.toISOString(),
-          _sortKey: stamp,
-        });
-      } else {
-        existing.bookings += 1;
-        existing.totalGuests += b.partySize;
-        if (b.date.toISOString() > existing.lastVisit) existing.lastVisit = b.date.toISOString();
-        // Use the most recently created booking's name/phone as canonical.
-        if (stamp > existing._sortKey) {
-          existing.name = b.guestName;
-          existing.phone = b.guestPhone;
-          existing._sortKey = stamp;
-        }
+    // Canonical name/email per phone — most recent booking only, and only
+    // for this page's phone numbers (never the whole table).
+    const phones = grouped.map((g) => g.guestPhone);
+    const latestRows = phones.length
+      ? await prisma.booking.findMany({
+          where: { guestPhone: { in: phones } },
+          orderBy: { createdAt: "desc" },
+          select: { guestPhone: true, guestName: true, guestEmail: true },
+        })
+      : [];
+    const canonicalByPhone = new Map<string, { name: string; email: string }>();
+    for (const row of latestRows) {
+      if (!canonicalByPhone.has(row.guestPhone)) {
+        canonicalByPhone.set(row.guestPhone, { name: row.guestName, email: row.guestEmail ?? "" });
       }
     }
 
-    let clients = [...map.values()];
-
-    if (q) {
-      clients = clients.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.phone.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q)
-      );
-    }
-
-    // Most recent visitors first.
-    clients.sort((a, b) => (a.lastVisit < b.lastVisit ? 1 : -1));
-
-    const total = clients.length;
-    const totalPages = Math.ceil(total / pageSize) || 1;
-    const paged = clients
-      .slice((page - 1) * pageSize, page * pageSize)
-      .map(({ _sortKey, ...rest }) => rest); // strip internal field
-
-    return apiOk({
-      clients: paged,
-      pagination: { page, pageSize, total, totalPages },
+    const clients = grouped.map((g) => {
+      const canonical = canonicalByPhone.get(g.guestPhone);
+      return {
+        name: canonical?.name ?? "",
+        phone: g.guestPhone,
+        email: canonical?.email ?? "",
+        bookings: g._count._all,
+        totalGuests: g._sum.partySize ?? 0,
+        lastVisit: (g._max.date ?? new Date()).toISOString(),
+      };
     });
+
+    return apiOk({ clients, pagination: { page, pageSize, total, totalPages } });
   } catch (err) {
     return handleRouteError(err);
   }

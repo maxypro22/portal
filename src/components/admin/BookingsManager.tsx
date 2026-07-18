@@ -27,7 +27,7 @@ type Booking = {
   reference: string;
   guestName: string;
   guestPhone: string;
-  guestEmail: string;
+  guestEmail: string | null;
   partySize: number;
   date: string;
   timeSlot: string;
@@ -212,7 +212,7 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left text-sm">
+            <table className="w-full min-w-[980px] text-left text-sm">
               <thead>
                 <tr className="border-b border-surface-border text-xs uppercase tracking-wide text-content-dim">
                   <th className="px-4 py-3 font-semibold">Reference</th>
@@ -220,6 +220,7 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
                   <th className="px-4 py-3 font-semibold">Location</th>
                   <th className="px-4 py-3 font-semibold">Date &amp; Time</th>
                   <th className="px-4 py-3 font-semibold"># of Guests</th>
+                  <th className="px-4 py-3 font-semibold">Selected Items</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
@@ -242,6 +243,14 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
                       <p className="text-xs text-content-dim">{formatTime12h(b.timeSlot)}</p>
                     </td>
                     <td className="px-4 py-3 text-content-muted">{b.partySize}</td>
+                    <td className="px-4 py-3 text-content-muted">
+                      <span
+                        className="block max-w-[220px] truncate"
+                        title={b.specialRequests ?? undefined}
+                      >
+                        {b.specialRequests || "—"}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={b.status} />
                     </td>
@@ -405,7 +414,7 @@ function EditBookingModal({
   const [form, setForm] = useState({
     guestName: booking.guestName,
     guestPhone: booking.guestPhone,
-    guestEmail: booking.guestEmail,
+    guestEmail: booking.guestEmail ?? "",
     partySize: booking.partySize,
     date: toDateKey(new Date(booking.date)),
     timeSlot: booking.timeSlot,
@@ -464,7 +473,11 @@ function EditBookingModal({
         <LabeledInput label="Full Name" value={form.guestName} onChange={(v) => set("guestName", v)} />
         <LabeledInput label="Phone" value={form.guestPhone} onChange={(v) => set("guestPhone", v)} />
         <div className="sm:col-span-2">
-          <LabeledInput label="Email" value={form.guestEmail} onChange={(v) => set("guestEmail", v)} />
+          <LabeledInput
+            label="Email (optional)"
+            value={form.guestEmail}
+            onChange={(v) => set("guestEmail", v)}
+          />
         </div>
         <LabeledInput
           label="Party Size"

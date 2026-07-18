@@ -76,6 +76,7 @@ export async function PATCH(req: Request, { params }: Params) {
         where: { id: params.id },
         data: {
           ...data,
+          guestEmail: data.guestEmail !== undefined ? data.guestEmail || null : undefined,
           date: data.date ? fromDateKey(data.date) : undefined,
         },
         include: {
