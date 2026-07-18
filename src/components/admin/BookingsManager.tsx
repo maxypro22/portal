@@ -42,7 +42,10 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [locationId, setLocationId] = useState("");
-  const [date, setDate] = useState("");
+  // Defaults to today so the list opens on "daily bookings" — the date
+  // input doubles as the slicer, so admins can pick another day or clear it
+  // (via "Clear filters") to see every booking.
+  const [date, setDate] = useState(() => toDateKey(new Date()));
   const [page, setPage] = useState(1);
 
   const [data, setData] = useState<{ bookings: Booking[]; pagination: Pagination } | null>(null);

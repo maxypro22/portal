@@ -76,7 +76,7 @@ export function MenuBrowserModal({
         <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
           {/* Category nav — horizontal chips on phone/tablet, scrollable sidebar on desktop */}
           <div className="shrink-0 border-b border-surface-border lg:h-full lg:w-60 lg:border-b-0 lg:border-r">
-            <div className="flex gap-2 overflow-x-auto px-4 py-3 lg:h-full lg:flex-col lg:overflow-y-auto lg:overflow-x-visible lg:px-3 lg:py-4">
+            <div className="flex w-full snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-4 px-4 py-3 lg:h-full lg:w-auto lg:flex-col lg:snap-none lg:overflow-y-auto lg:overflow-x-visible lg:px-3 lg:py-4">
               {MENU_CATEGORIES.map((cat) => {
                 const count = selected.filter((s) => s.key.startsWith(`${cat.key}::`)).length;
                 const active = cat.key === activeCategory;
@@ -86,7 +86,7 @@ export function MenuBrowserModal({
                     type="button"
                     onClick={() => setActiveCategory(cat.key)}
                     className={cn(
-                      "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors lg:w-full lg:justify-between lg:whitespace-normal",
+                      "flex shrink-0 snap-start items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors lg:w-full lg:justify-between lg:whitespace-normal",
                       active
                         ? "bg-gold/10 text-gold"
                         : "text-content-muted hover:bg-surface-sunken hover:text-content"

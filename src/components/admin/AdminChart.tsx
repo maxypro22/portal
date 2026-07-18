@@ -57,6 +57,7 @@ export function AdminChart({ data }: { data: ChartPoint[] }) {
               fontSize: 13,
             }}
             labelStyle={{ color: "#c9a227", fontWeight: 600 }}
+            itemStyle={{ color: tooltipText }}
             formatter={(value: number) => [`${value} bookings`, ""]}
           />
           <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={38}>
