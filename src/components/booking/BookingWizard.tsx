@@ -16,6 +16,7 @@ import {
   ChevronRight,
   ChevronDown,
   Check,
+  X,
   Phone,
   Mail,
   User,
@@ -26,9 +27,11 @@ import {
   PartyPopper,
 } from "lucide-react";
 import { WizardProgress } from "./WizardProgress";
+import { MenuBrowserModal, type SelectedMoodItem } from "./MenuBrowserModal";
 import { Skeleton, EmptyState } from "@/components/ui/Primitives";
 import { apiFetch } from "@/lib/fetcher";
 import { guestDetailsSchema, type GuestDetailsInput } from "@/lib/validations";
+import { parseSelectedMoodItems } from "@/lib/menuData";
 import { MAX_ADVANCE_BOOKING_DAYS, MAX_PARTY_SIZE, MIN_PARTY_SIZE } from "@/lib/constants";
 import {
   buildMonthGrid,
@@ -65,16 +68,6 @@ const STEPS = [
   { id: 4, label: "Confirm" },
 ];
 const LAST_STEP = STEPS.length;
-
-/** Real menu items (burgers & sandwiches) for the "what are you in the mood for" picker. */
-const MOOD_ITEMS = [
-  { name: "Sizzling Cheese Burger", image: "/menu/sizzling-cheese-burger.webp" },
-  { name: "Pulled Ribs", image: "/menu/pulled-ribs.webp" },
-  { name: "Town Burger – Wagyu", image: "/menu/town-burger-wagyu.webp" },
-  { name: "Brisket Quesadilla", image: "/menu/brisket-quesadilla.webp" },
-  { name: "Little Spice", image: "/menu/little-spice.webp" },
-  { name: "Classic Bacon Burger", image: "/menu/classic-bacon-burger.webp" },
-] as const;
 
 export function BookingWizard() {
   const [step, setStep] = useState(1);
@@ -763,6 +756,31 @@ function DetailsStep({
     },
   });
 
+  // Selected menu items live here (with images, for the chip display) and
+  // are synced into the form's plain specialRequests string (comma-joined
+  // names) whenever they change — that string is all the DB actually stores.
+  const [moodItems, setMoodItems] = useState<SelectedMoodItem[]>(() =>
+    parseSelectedMoodItems(defaultValues?.specialRequests)
+  );
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  function toggleMoodItem(item: SelectedMoodItem) {
+    setMoodItems((prev) => {
+      const exists = prev.some((p) => p.key === item.key);
+      const next = exists ? prev.filter((p) => p.key !== item.key) : [...prev, item];
+      setValue("specialRequests", next.map((n) => n.name).join(", "), { shouldValidate: true });
+      return next;
+    });
+  }
+
+  function removeMoodItem(key: string) {
+    setMoodItems((prev) => {
+      const next = prev.filter((p) => p.key !== key);
+      setValue("specialRequests", next.map((n) => n.name).join(", "), { shouldValidate: true });
+      return next;
+    });
+  }
+
   // Lift valid values up so the wizard can enable Continue / submit.
   const values = watch();
   useEffect(() => {
@@ -815,88 +833,56 @@ function DetailsStep({
             <span className="text-gold/70"><UtensilsCrossed className="h-4 w-4" /></span>
             What are you in the mood for today?
           </span>
-          <MoodDropdown
-            value={watch("specialRequests") ?? ""}
-            onSelect={(name) => setValue("specialRequests", name, { shouldValidate: true })}
-          />
-        </div>
-      </form>
-    </div>
-  );
-}
-
-/** Small dropdown: food name on the left, rounded-square thumbnail on the right. */
-function MoodDropdown({ value, onSelect }: { value: string; onSelect: (name: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const selected = MOOD_ITEMS.find((m) => m.name === value);
-
-  useEffect(() => {
-    if (!open) return;
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="input-base flex items-center justify-between text-left"
-        aria-expanded={open}
-      >
-        <span className="flex items-center gap-2.5">
-          {selected && (
-            <Image src={selected.image} alt="" width={28} height={28} className="rounded-md object-cover" />
-          )}
-          <span className={selected ? "text-content" : "text-content-dim"}>
-            {selected ? selected.name : "Not sure yet — surprise me!"}
-          </span>
-        </span>
-        <ChevronDown className={cn("h-4 w-4 shrink-0 text-gold transition-transform", open && "rotate-180")} />
-      </button>
-
-      {open && (
-        <div className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-surface-border bg-surface-raised shadow-card-hover">
           <button
             type="button"
-            onClick={() => { onSelect(""); setOpen(false); }}
-            className={cn(
-              "flex w-full items-center justify-between px-4 py-3 text-sm transition-colors",
-              !value ? "bg-gold/15 text-gold" : "text-content-muted hover:bg-surface-sunken hover:text-content"
-            )}
+            onClick={() => setMenuOpen(true)}
+            className="input-base flex items-center justify-between text-left"
           >
-            Not sure yet — surprise me!
-            {!value && <Check className="h-4 w-4" />}
+            <span className={moodItems.length ? "text-content" : "text-content-dim"}>
+              {moodItems.length
+                ? `${moodItems.length} item${moodItems.length === 1 ? "" : "s"} selected`
+                : "Browse the menu — optional"}
+            </span>
+            <UtensilsCrossed className="h-4 w-4 shrink-0 text-gold" />
           </button>
-          {MOOD_ITEMS.map((item) => {
-            const active = item.name === value;
-            return (
-              <button
-                key={item.name}
-                type="button"
-                onClick={() => { onSelect(item.name); setOpen(false); }}
-                className={cn(
-                  "flex w-full items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors",
-                  active ? "bg-gold/15 text-gold" : "text-content-muted hover:bg-surface-sunken hover:text-content"
-                )}
-              >
-                <span className="truncate">{item.name}</span>
-                <Image
-                  src={item.image}
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="h-10 w-10 shrink-0 rounded-lg object-cover"
-                />
-              </button>
-            );
-          })}
+
+          {/* Selected items — shown as chips (thumbnail + name + remove) */}
+          {moodItems.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {moodItems.map((item) => (
+                <span
+                  key={item.key}
+                  className="flex items-center gap-2 rounded-full border border-surface-border bg-surface-sunken/40 py-1 pl-1 pr-3 text-xs text-content-muted"
+                >
+                  <Image
+                    src={item.image}
+                    alt=""
+                    width={28}
+                    height={28}
+                    className="h-7 w-7 shrink-0 rounded-full object-cover"
+                  />
+                  {item.name}
+                  <button
+                    type="button"
+                    onClick={() => removeMoodItem(item.key)}
+                    aria-label={`Remove ${item.name}`}
+                    className="text-content-dim transition-colors hover:text-status-cancelled"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </form>
+
+      <MenuBrowserModal
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        selected={moodItems}
+        onToggle={toggleMoodItem}
+      />
     </div>
   );
 }
@@ -975,24 +961,31 @@ function ConfirmStep({
       </div>
 
       {details.specialRequests && (
-        <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-surface-border bg-surface-sunken/30 p-4">
-          <div className="min-w-0">
-            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-luxe text-content-dim">
-              <UtensilsCrossed className="h-3.5 w-3.5" /> In the mood for
-            </p>
-            <p className="mt-2 truncate text-sm text-content-muted">{details.specialRequests}</p>
-          </div>
+        <div className="mt-4 rounded-xl border border-surface-border bg-surface-sunken/30 p-4">
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-luxe text-content-dim">
+            <UtensilsCrossed className="h-3.5 w-3.5" /> In the mood for
+          </p>
           {(() => {
-            const mood = MOOD_ITEMS.find((m) => m.name === details.specialRequests);
-            return mood ? (
-              <Image
-                src={mood.image}
-                alt={mood.name}
-                width={48}
-                height={48}
-                className="h-12 w-12 shrink-0 rounded-lg object-cover"
-              />
-            ) : null;
+            const moodItems = parseSelectedMoodItems(details.specialRequests);
+            if (moodItems.length === 0) {
+              return <p className="mt-2 text-sm text-content-muted">{details.specialRequests}</p>;
+            }
+            return (
+              <div className="mt-3 flex flex-wrap gap-3">
+                {moodItems.map((item) => (
+                  <div key={item.name} className="flex items-center gap-2 rounded-full border border-surface-border bg-surface-raised py-1 pl-1 pr-3">
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      width={32}
+                      height={32}
+                      className="h-8 w-8 shrink-0 rounded-full object-cover"
+                    />
+                    <span className="text-sm text-content-muted">{item.name}</span>
+                  </div>
+                ))}
+              </div>
+            );
           })()}
         </div>
       )}
