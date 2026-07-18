@@ -862,6 +862,7 @@ function DetailsStep({
                     className="h-7 w-7 shrink-0 rounded-full object-cover"
                   />
                   {item.name}
+                  <span className="font-semibold text-gold">{item.price}</span>
                   <button
                     type="button"
                     onClick={() => removeMoodItem(item.key)}
@@ -982,6 +983,7 @@ function ConfirmStep({
                       className="h-8 w-8 shrink-0 rounded-full object-cover"
                     />
                     <span className="text-sm text-content-muted">{item.name}</span>
+                    <span className="text-sm font-semibold text-gold">{item.price}</span>
                   </div>
                 ))}
               </div>

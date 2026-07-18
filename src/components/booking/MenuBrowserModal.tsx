@@ -7,7 +7,7 @@ import { X, Check, UtensilsCrossed } from "lucide-react";
 import { MENU_CATEGORIES } from "@/lib/menuData";
 import { cn } from "@/lib/utils";
 
-export type SelectedMoodItem = { key: string; name: string; image: string };
+export type SelectedMoodItem = { key: string; name: string; image: string; price: string };
 
 /**
  * Full-screen (mobile) / large modal (desktop) menu browser — the guest
@@ -74,9 +74,9 @@ export function MenuBrowserModal({
         </div>
 
         <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
-          {/* Category nav — horizontal chips on phone/tablet, sidebar on desktop */}
-          <div className="shrink-0 border-b border-surface-border lg:w-60 lg:border-b-0 lg:border-r">
-            <div className="flex gap-2 overflow-x-auto px-4 py-3 lg:flex-col lg:overflow-visible lg:px-3 lg:py-4">
+          {/* Category nav — horizontal chips on phone/tablet, scrollable sidebar on desktop */}
+          <div className="shrink-0 border-b border-surface-border lg:h-full lg:w-60 lg:border-b-0 lg:border-r">
+            <div className="flex gap-2 overflow-x-auto px-4 py-3 lg:h-full lg:flex-col lg:overflow-y-auto lg:overflow-x-visible lg:px-3 lg:py-4">
               {MENU_CATEGORIES.map((cat) => {
                 const count = selected.filter((s) => s.key.startsWith(`${cat.key}::`)).length;
                 const active = cat.key === activeCategory;
@@ -120,7 +120,7 @@ export function MenuBrowserModal({
                     <button
                       key={key}
                       type="button"
-                      onClick={() => onToggle({ key, name: item.name, image: item.image })}
+                      onClick={() => onToggle({ key, name: item.name, image: item.image, price: item.price })}
                       aria-pressed={isSelected}
                       className={cn(
                         "group relative overflow-hidden rounded-2xl border-2 text-left transition-all duration-200 hover:-translate-y-0.5",
@@ -153,6 +153,7 @@ export function MenuBrowserModal({
                         <p className="line-clamp-2 text-xs font-medium leading-snug text-content sm:text-sm">
                           {item.name}
                         </p>
+                        <p className="mt-1 text-xs font-semibold text-gold">{item.price}</p>
                       </div>
                     </button>
                   );
