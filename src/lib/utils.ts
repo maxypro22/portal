@@ -7,6 +7,32 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * The current moment expressed as Doha (Asia/Qatar, UTC+3, no DST) wall-clock
+ * time, returned as a Date whose local getters (getFullYear/getMonth/
+ * getDate/getHours/getMinutes) read exactly as a clock on the restaurant's
+ * wall would. Use this instead of `new Date()` anywhere "today"/"now" means
+ * the restaurant's own calendar day — the server (often UTC) and a guest's
+ * own device (anywhere in the world) can be in a different timezone than
+ * Doha, which would otherwise make "is this slot in the past" or "what day
+ * is today" wrong by however many hours those timezones are apart.
+ */
+export function qatarNow(): Date {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Qatar",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const hour = get("hour") % 24; // Intl can format midnight as "24"
+  return new Date(get("year"), get("month") - 1, get("day"), hour, get("minute"), get("second"));
+}
+
 /** "HH:mm" -> minutes from midnight. */
 export function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);

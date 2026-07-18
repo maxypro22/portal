@@ -46,6 +46,7 @@ import {
   fromDateKey,
   generateSlotsForDay,
   normalizeQatarPhone,
+  qatarNow,
   timeToMinutes,
   toDateKey,
 } from "@/lib/utils";
@@ -583,8 +584,8 @@ function TimesList({
     );
   }
 
-  const isToday = dateKey === toDateKey(new Date());
-  const now = new Date();
+  const now = qatarNow();
+  const isToday = dateKey === toDateKey(now);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const isPast = (time: string) => isToday && timeToMinutes(time) <= nowMinutes;
 
@@ -635,7 +636,7 @@ function MiniCalendar({
   onSelect: (key: string) => void;
 }) {
   const today = useMemo(() => {
-    const d = new Date();
+    const d = qatarNow();
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
@@ -725,7 +726,7 @@ function MiniCalendar({
 
 /** "Today" / "Tomorrow" / "16 Jul" for the compact pill display. */
 function formatShortDate(date: Date): string {
-  const today = new Date();
+  const today = qatarNow();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
@@ -936,7 +937,7 @@ function ConfirmStep({
       label: "Date",
       value: formatLongDate(fromDateKey(dateKey)),
     },
-    { icon: <Clock className="h-4 w-4" />, label: "Time", value: `${formatTime12h(timeSlot)} (2 hrs)` },
+    { icon: <Clock className="h-4 w-4" />, label: "Time", value: formatTime12h(timeSlot) },
     { icon: <User className="h-4 w-4" />, label: "Name", value: details.guestName },
     { icon: <Phone className="h-4 w-4" />, label: "Phone", value: normalizeQatarPhone(details.guestPhone) },
     ...(details.guestEmail

@@ -18,7 +18,7 @@ import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { StatusBadge, EmptyState, Skeleton } from "@/components/ui/Primitives";
 import { apiFetch } from "@/lib/fetcher";
 import { BOOKING_STATUSES, STATUS_META, type BookingStatus } from "@/lib/constants";
-import { cn, formatTime12h, toDateKey } from "@/lib/utils";
+import { cn, formatTime12h, qatarNow, toDateKey } from "@/lib/utils";
 
 type LocationLite = { id: string; name: string };
 type Booking = {
@@ -44,7 +44,7 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
   // Defaults to today so the list opens on "daily bookings" — the date
   // input doubles as the slicer, so admins can pick another day or clear it
   // (via "Clear filters") to see every booking.
-  const [date, setDate] = useState(() => toDateKey(new Date()));
+  const [date, setDate] = useState(() => toDateKey(qatarNow()));
   const [page, setPage] = useState(1);
 
   const [data, setData] = useState<{ bookings: Booking[]; pagination: Pagination } | null>(null);

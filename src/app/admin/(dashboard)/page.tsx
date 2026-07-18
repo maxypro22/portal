@@ -5,7 +5,7 @@ import { PageHeader, StatCard } from "@/components/admin/AdminUI";
 import { AdminChart, type ChartPoint } from "@/components/admin/AdminChart";
 import { StatusBadge } from "@/components/ui/Primitives";
 import { EmptyState } from "@/components/ui/Primitives";
-import { cn, formatTime12h, toDateKey } from "@/lib/utils";
+import { cn, formatTime12h, qatarNow, toDateKey } from "@/lib/utils";
 import type { BookingStatus } from "@/lib/constants";
 
 export const metadata = { title: "Overview" };
@@ -50,7 +50,7 @@ export default async function OverviewPage({
 }: {
   searchParams: { period?: string };
 }) {
-  const now = new Date();
+  const now = qatarNow();
   const today = startOfDay(now);
   const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 

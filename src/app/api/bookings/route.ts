@@ -5,7 +5,7 @@ import { createBookingSchema } from "@/lib/validations";
 import { BookingRequestError, pickAvailableTable, runSerializable } from "@/lib/booking";
 import { getWorkingHours } from "@/lib/hours";
 import { DEFAULT_DURATION_MINUTES } from "@/lib/constants";
-import { fromDateKey, generateReference, timeToMinutes, toDateKey } from "@/lib/utils";
+import { fromDateKey, generateReference, qatarNow, timeToMinutes, toDateKey } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
       return apiError("Selected time is outside our working hours.", 400);
     }
 
-    const now = new Date();
+    const now = qatarNow();
     if (toDateKey(now) === input.date) {
       const nowMinutes = now.getHours() * 60 + now.getMinutes();
       if (timeToMinutes(input.timeSlot) <= nowMinutes) {
