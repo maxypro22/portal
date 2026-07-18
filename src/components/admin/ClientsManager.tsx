@@ -104,14 +104,12 @@ export function ClientsManager() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[480px] text-left text-sm">
               <thead>
                 <tr className="border-b border-surface-border text-xs uppercase tracking-wide text-content-dim">
                   <th className="px-4 py-3 font-semibold">Name</th>
                   <th className="px-4 py-3 font-semibold">Phone Number</th>
                   <th className="px-4 py-3 font-semibold">Email</th>
-                  <th className="px-4 py-3 font-semibold">Bookings</th>
-                  <th className="px-4 py-3 font-semibold">Last Visit</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-600/30">
@@ -146,19 +144,6 @@ export function ClientsManager() {
                       ) : (
                         <span className="text-content-dim/60">—</span>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-content-muted">
-                      {c.bookings}
-                      <span className="ml-1 text-xs text-content-dim">
-                        ({c.totalGuests} guests)
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-content-muted">
-                      {new Date(c.lastVisit).toLocaleDateString("en-GB", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
                     </td>
                   </tr>
                 ))}

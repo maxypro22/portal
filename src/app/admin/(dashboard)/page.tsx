@@ -52,7 +52,6 @@ export default async function OverviewPage({
 }) {
   const now = qatarNow();
   const today = startOfDay(now);
-  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
   const period: PeriodKey = PERIODS.some((p) => p.key === searchParams.period)
     ? (searchParams.period as PeriodKey)
@@ -76,17 +75,17 @@ export default async function OverviewPage({
   // stays fast for the "All" filter even once bookings run into the
   // hundreds of thousands — Postgres computes count/sum, only two numbers
   // cross the wire instead of every row.
-  const [periodStats, todayCreatedCount, chartRows, todaysTimeline] = await Promise.all([
+  const [periodStats, todayCount, chartRows, todaysTimeline] = await Promise.all([
     prisma.booking.aggregate({
       where: { ...periodDateFilter, status: { in: ACTIVE } },
       _count: { _all: true },
       _sum: { partySize: true },
     }),
-    // Bookings *placed* today (by createdAt), independent of the period
-    // filter and of which date they're for — resets naturally every day
-    // since `today`/`tomorrow` are recomputed on every server render.
+    // Bookings *for* today specifically, independent of whatever period
+    // filter is selected above — resets naturally every day since `today`
+    // is recomputed on every server render.
     prisma.booking.count({
-      where: { createdAt: { gte: today, lt: tomorrow } },
+      where: { date: today, status: { in: ACTIVE } },
     }),
     prisma.booking.findMany({
       where: {
@@ -132,11 +131,11 @@ export default async function OverviewPage({
         title="Overview"
         badge={
           <span
-            title="Bookings placed today — resets to 0 each new day"
+            title="Bookings scheduled for today — resets to 0 each new day"
             className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold"
           >
             <BellRing className="h-3.5 w-3.5" />
-            {todayCreatedCount} booked today
+            {todayCount} booked today
           </span>
         }
         subtitle={now.toLocaleDateString("en-GB", {

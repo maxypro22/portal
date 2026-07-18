@@ -85,10 +85,11 @@
     @apply bg-gold/50;
   }
 
-  /* Native date-input calendar icon: browser default renders it near-black,
-     which disappears against our dark surfaces — invert it to white in dark
+  /* Native date/time-input icons: browser default renders them near-black,
+     which disappears against our dark surfaces — invert to white in dark
      mode only (light mode's icon is already legible on its own). */
-  [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+  [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+  [data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
     filter: invert(1) brightness(1.3);
   }
 
