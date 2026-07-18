@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { SLOT_INTERVAL_MINUTES, WORKING_HOURS, type HoursMap } from "./constants";
 
 /** Tailwind-aware className combiner. */
 export function cn(...inputs: ClassValue[]) {
@@ -26,6 +27,27 @@ export function formatTime12h(time: string): string {
   const period = h >= 12 ? "PM" : "AM";
   const hour12 = h % 12 === 0 ? 12 : h % 12;
   return `${hour12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+/**
+ * Generate 30-min booking start slots for a given weekday, honoring working
+ * hours. The last slot leaves room for a 2-hour dining window before close.
+ * Purely a display/selection list — every slot returned here is bookable by
+ * any number of guests (no availability/overlap restriction).
+ */
+export function generateSlotsForDay(
+  dayOfWeek: number,
+  durationMinutes = 120,
+  hoursMap: HoursMap = WORKING_HOURS
+): string[] {
+  const hours = hoursMap[dayOfWeek];
+  if (!hours) return [];
+  const slots: string[] = [];
+  const lastStart = hours.close - durationMinutes;
+  for (let m = hours.open; m <= lastStart; m += SLOT_INTERVAL_MINUTES) {
+    slots.push(minutesToTime(m));
+  }
+  return slots;
 }
 
 /** Local YYYY-MM-DD (avoids UTC off-by-one from toISOString). */

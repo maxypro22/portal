@@ -44,8 +44,9 @@ import {
   formatTime12h,
   formatLongDate,
   fromDateKey,
-  minutesToTime,
+  generateSlotsForDay,
   normalizeQatarPhone,
+  timeToMinutes,
   toDateKey,
 } from "@/lib/utils";
 
@@ -364,10 +365,11 @@ function LocationDropdown({
 /**
  * Combined Guests / Date / Time picker — one pill-shaped bar with three
  * segments, each opening a dropdown panel below (guest count list, a real
- * month calendar, and a free time input). Guests enter whatever time they'd
- * like to come — there's no availability restriction, only working hours.
- * No table is chosen here either — one is auto-assigned for record-keeping
- * when the booking is submitted, and never blocks the reservation.
+ * month calendar, and a tap-to-select time list). The time list is purely
+ * generated from working hours — there's no availability restriction, so
+ * any number of guests can pick the same time. No table is chosen here
+ * either — one is auto-assigned for record-keeping when the booking is
+ * submitted, and never blocks the reservation.
  */
 function GuestsDateTimeStep({
   partySize,
@@ -401,10 +403,14 @@ function GuestsDateTimeStep({
     () => new Set(hoursByDay.filter((d) => !d.isOpen).map((d) => d.dayOfWeek)),
     [hoursByDay]
   );
-  const selectedDayHours = useMemo(() => {
-    if (!dateKey) return null;
+  const daySlots = useMemo(() => {
+    if (!dateKey) return [];
     const dow = fromDateKey(dateKey).getDay();
-    return hoursByDay.find((d) => d.dayOfWeek === dow && d.isOpen) ?? null;
+    const dayHours = hoursByDay.find((d) => d.dayOfWeek === dow && d.isOpen);
+    if (!dayHours) return [];
+    return generateSlotsForDay(dow, DEFAULT_DURATION_MINUTES, {
+      [dow]: { open: dayHours.openMinutes, close: dayHours.closeMinutes },
+    });
   }, [dateKey, hoursByDay]);
 
   // Close the open panel on outside click.
@@ -425,7 +431,7 @@ function GuestsDateTimeStep({
       <StepHeader
         icon={<CalendarDays className="h-5 w-5" />}
         title="Guests, Date & Time"
-        subtitle="Reservations run for 2 hours. Tell us your preferred time — we'll do our best to seat you then."
+        subtitle="Reservations run for 2 hours. Pick your preferred time — we'll seat you then."
       />
 
       <div ref={ref} className="relative">
@@ -467,11 +473,11 @@ function GuestsDateTimeStep({
               />
             )}
             {open === "time" && dateKey && (
-              <TimePicker
+              <TimesList
                 dateKey={dateKey}
-                dayHours={selectedDayHours}
+                slots={daySlots}
                 value={timeSlot}
-                onSelect={onPickTime}
+                onSelect={(t) => { onPickTime(t); setOpen(null); }}
               />
             )}
           </div>
@@ -479,7 +485,7 @@ function GuestsDateTimeStep({
       </div>
 
       <p className="mt-4 text-xs text-content-dim/70">
-        Enter any time you'd like to come within our working hours.
+        Struck-through times have already passed today. Any other time can be booked.
       </p>
     </div>
   );
@@ -553,23 +559,23 @@ function GuestsList({
 }
 
 /**
- * Free time entry, bounded only by the restaurant's working hours for the
- * selected date (with room for the full 2-hour dining window before close)
- * — no availability/overlap restriction. Guests type or pick whatever time
- * they'd like to come.
+ * Scrollable time-slot list, generated from working hours — tap to select.
+ * There's no availability restriction: every future slot stays selectable
+ * no matter how many other guests have already picked it. Only slots that
+ * have already passed today are struck through and disabled.
  */
-function TimePicker({
+function TimesList({
   dateKey,
-  dayHours,
+  slots,
   value,
   onSelect,
 }: {
   dateKey: string;
-  dayHours: DayHours | null;
+  slots: string[];
   value: string | null;
   onSelect: (t: string) => void;
 }) {
-  if (!dayHours) {
+  if (slots.length === 0) {
     return (
       <div className="p-4">
         <EmptyState title="Closed on this day" description="Please choose another date." />
@@ -580,40 +586,40 @@ function TimePicker({
   const isToday = dateKey === toDateKey(new Date());
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const lastStart = dayHours.closeMinutes - DEFAULT_DURATION_MINUTES;
-  const earliest = isToday ? Math.max(dayHours.openMinutes, nowMinutes + 1) : dayHours.openMinutes;
+  const isPast = (time: string) => isToday && timeToMinutes(time) <= nowMinutes;
 
-  if (earliest > lastStart) {
+  if (slots.every(isPast)) {
     return (
       <div className="p-4">
-        <EmptyState title="No time left today" description="Please choose another date." />
+        <EmptyState title="No times left today" description="Please choose another date." />
       </div>
     );
   }
 
-  const minStr = minutesToTime(earliest);
-  const maxStr = minutesToTime(lastStart);
-
   return (
-    <div className="p-4">
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-content-muted">
-          Preferred arrival time
-        </span>
-        <input
-          type="time"
-          value={value ?? ""}
-          min={minStr}
-          max={maxStr}
-          onChange={(e) => e.target.value && onSelect(e.target.value)}
-          className="input-base"
-          autoFocus
-        />
-      </label>
-      <p className="mt-2 text-xs text-content-dim">
-        Open {formatTime12h(minutesToTime(dayHours.openMinutes))} –{" "}
-        {formatTime12h(minutesToTime(dayHours.closeMinutes))}. Pick any time in that window.
-      </p>
+    <div className="max-h-72 overflow-y-auto py-2">
+      {slots.map((time) => {
+        const past = isPast(time);
+        const active = value === time;
+        return (
+          <button
+            key={time}
+            type="button"
+            disabled={past}
+            onClick={() => onSelect(time)}
+            className={cn(
+              "flex w-full items-center justify-center px-4 py-2.5 text-sm font-medium transition-colors",
+              active
+                ? "bg-gold-gradient text-brand-950"
+                : past
+                  ? "cursor-not-allowed text-content-dim/40 line-through"
+                  : "text-content-muted hover:bg-surface-sunken hover:text-content"
+            )}
+          >
+            {formatTime12h(time)}
+          </button>
+        );
+      })}
     </div>
   );
 }
