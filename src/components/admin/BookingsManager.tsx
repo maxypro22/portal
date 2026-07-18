@@ -447,7 +447,7 @@ function EditBookingModal({
       open
       onClose={onClose}
       title={`Edit ${booking.reference}`}
-      description={`Table ${booking.table.number} · ${booking.location.name}`}
+      description={booking.location.name}
       size="lg"
       footer={
         <>

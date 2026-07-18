@@ -100,7 +100,6 @@ export default async function OverviewPage({
       orderBy: { timeSlot: "asc" },
       take: TIMELINE_LIMIT,
       include: {
-        table: { select: { number: true, section: true } },
         location: { select: { name: true } },
       },
     }),
@@ -218,7 +217,7 @@ export default async function OverviewPage({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-content">{b.guestName}</p>
                     <p className="truncate text-xs text-content-dim">
-                      Table {b.table.number} · {b.partySize} guests
+                      {b.location.name} · {b.partySize} guests
                     </p>
                   </div>
                   <StatusBadge status={b.status as BookingStatus} />

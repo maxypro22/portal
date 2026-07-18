@@ -104,3 +104,16 @@ export const loginSchema = z.object({
   password: z.string().trim().min(1, "Password is required"),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
+
+// --- Admin: user (dashboard login accounts) management ----------------------
+export const createUserSchema = z.object({
+  name: z.string().trim().min(2, "Please enter a name").max(80),
+  email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(72),
+});
+export type CreateUserInput = z.infer<typeof createUserSchema>;
+
+export const changePasswordSchema = z.object({
+  password: z.string().min(8, "Password must be at least 8 characters").max(72),
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

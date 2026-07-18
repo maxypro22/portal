@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, Pencil, Trash2, MapPin, Phone, Armchair, Power } from "lucide-react";
+import { Plus, Pencil, Trash2, MapPin, Phone, Power } from "lucide-react";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { EmptyState, Skeleton } from "@/components/ui/Primitives";
 import { apiFetch } from "@/lib/fetcher";
@@ -15,7 +15,6 @@ type Location = {
   phone: string;
   imageUrl: string | null;
   isActive: boolean;
-  _count?: { tables: number; bookings: number };
 };
 
 const EMPTY = { name: "", address: "", phone: "+974 ", imageUrl: "", isActive: true };
@@ -108,11 +107,7 @@ export function LocationsManager() {
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-surface-border pt-4">
-                <span className="flex items-center gap-2 text-xs text-content-dim">
-                  <Armchair className="h-4 w-4 text-gold/70" />
-                  {loc._count?.tables ?? 0} tables · {loc._count?.bookings ?? 0} bookings
-                </span>
+              <div className="mt-4 flex items-center justify-end border-t border-surface-border pt-4">
                 <div className="flex gap-2">
                   <button
                     onClick={() => setEditing(loc)}

@@ -10,6 +10,7 @@ import {
   Users,
   Clock,
   MapPin,
+  UserCog,
   LogOut,
   ExternalLink,
   Menu,
@@ -25,6 +26,7 @@ const NAV = [
   { label: "Clients", href: "/admin/clients", icon: Users },
   { label: "Working Hours", href: "/admin/hours", icon: Clock },
   { label: "Locations", href: "/admin/locations", icon: MapPin },
+  { label: "Users", href: "/admin/users", icon: UserCog },
 ];
 
 export function Sidebar({ userName }: { userName?: string | null }) {
