@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarCheck, CalendarClock, Users, Clock, BellRing } from "lucide-react";
+import { CalendarCheck, Users, Clock, BellRing } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, StatCard } from "@/components/admin/AdminUI";
 import { AdminChart, type ChartPoint } from "@/components/admin/AdminChart";
@@ -76,42 +76,35 @@ export default async function OverviewPage({
   // stays fast for the "All" filter even once bookings run into the
   // hundreds of thousands — Postgres computes count/sum, only two numbers
   // cross the wire instead of every row.
-  const [periodStats, upcomingCount, todayCreatedCount, chartRows, todaysTimeline] =
-    await Promise.all([
-      prisma.booking.aggregate({
-        where: { ...periodDateFilter, status: { in: ACTIVE } },
-        _count: { _all: true },
-        _sum: { partySize: true },
-      }),
-      prisma.booking.count({
-        where: {
-          date: { gte: today, ...(end ? { lte: end } : {}) },
-          status: { in: ["PENDING", "CONFIRMED"] },
-        },
-      }),
-      // Bookings *placed* today (by createdAt), independent of the period
-      // filter and of which date they're for — resets naturally every day
-      // since `today`/`tomorrow` are recomputed on every server render.
-      prisma.booking.count({
-        where: { createdAt: { gte: today, lt: tomorrow } },
-      }),
-      prisma.booking.findMany({
-        where: {
-          date: { gte: chartStart, lte: chartEnd },
-          status: { in: ACTIVE },
-        },
-        select: { date: true },
-      }),
-      prisma.booking.findMany({
-        where: { date: today },
-        orderBy: { timeSlot: "asc" },
-        take: TIMELINE_LIMIT,
-        include: {
-          table: { select: { number: true, section: true } },
-          location: { select: { name: true } },
-        },
-      }),
-    ]);
+  const [periodStats, todayCreatedCount, chartRows, todaysTimeline] = await Promise.all([
+    prisma.booking.aggregate({
+      where: { ...periodDateFilter, status: { in: ACTIVE } },
+      _count: { _all: true },
+      _sum: { partySize: true },
+    }),
+    // Bookings *placed* today (by createdAt), independent of the period
+    // filter and of which date they're for — resets naturally every day
+    // since `today`/`tomorrow` are recomputed on every server render.
+    prisma.booking.count({
+      where: { createdAt: { gte: today, lt: tomorrow } },
+    }),
+    prisma.booking.findMany({
+      where: {
+        date: { gte: chartStart, lte: chartEnd },
+        status: { in: ACTIVE },
+      },
+      select: { date: true },
+    }),
+    prisma.booking.findMany({
+      where: { date: today },
+      orderBy: { timeSlot: "asc" },
+      take: TIMELINE_LIMIT,
+      include: {
+        table: { select: { number: true, section: true } },
+        location: { select: { name: true } },
+      },
+    }),
+  ]);
 
   const totalGuests = periodStats._sum.partySize ?? 0;
 
@@ -174,20 +167,13 @@ export default async function OverviewPage({
       />
 
       {/* Stat cards — scoped to the selected period above */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <StatCard
           label="Bookings"
           value={periodStats._count._all}
           hint={`${periodLabel[0].toUpperCase()}${periodLabel.slice(1)}`}
           icon={<CalendarCheck className="h-5 w-5" />}
           accent="gold"
-        />
-        <StatCard
-          label="Upcoming"
-          value={upcomingCount}
-          hint="Pending & confirmed"
-          icon={<CalendarClock className="h-5 w-5" />}
-          accent="green"
         />
         <StatCard
           label="Guests"

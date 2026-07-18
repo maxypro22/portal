@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarX,
-  RotateCcw,
 } from "lucide-react";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { StatusBadge, EmptyState, Skeleton } from "@/components/ui/Primitives";
@@ -167,23 +166,12 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
             ))}
           </select>
 
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="input-base"
-            />
-            {hasFilters && (
-              <button
-                onClick={clearFilters}
-                title="Clear filters"
-                className="grid w-11 shrink-0 place-items-center rounded-xl border border-surface-border text-content-dim hover:border-gold hover:text-gold"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="input-base"
+          />
         </div>
       </div>
 

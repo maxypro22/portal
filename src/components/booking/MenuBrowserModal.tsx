@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { X, Check, UtensilsCrossed } from "lucide-react";
@@ -8,6 +8,40 @@ import { MENU_CATEGORIES } from "@/lib/menuData";
 import { cn } from "@/lib/utils";
 
 export type SelectedMoodItem = { key: string; name: string; image: string; price: string };
+
+/**
+ * Tracks horizontal scroll progress of a ref'd element as a thumb width/left
+ * (both %) — mobile browsers don't render custom ::-webkit-scrollbar styling
+ * on touch-scrolled containers (only a transient OS overlay), so a visible,
+ * always-on scrollbar for the category strip has to be drawn by hand.
+ */
+function useHorizontalScrollProgress(ref: React.RefObject<HTMLDivElement>) {
+  const [progress, setProgress] = useState({ thumbWidth: 100, thumbLeft: 0, scrollable: false });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    function update() {
+      const { scrollLeft, scrollWidth, clientWidth } = el!;
+      const scrollable = scrollWidth > clientWidth + 1;
+      const thumbWidth = scrollable ? Math.max(15, (clientWidth / scrollWidth) * 100) : 100;
+      const maxScroll = scrollWidth - clientWidth;
+      const thumbLeft = scrollable && maxScroll > 0 ? (scrollLeft / maxScroll) * (100 - thumbWidth) : 0;
+      setProgress({ thumbWidth, thumbLeft, scrollable });
+    }
+
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [ref]);
+
+  return progress;
+}
 
 /**
  * Full-screen (mobile) / large modal (desktop) menu browser — the guest
@@ -29,6 +63,8 @@ export function MenuBrowserModal({
 }) {
   const [activeCategory, setActiveCategory] = useState(MENU_CATEGORIES[0].key);
   const selectedKeys = useMemo(() => new Set(selected.map((s) => s.key)), [selected]);
+  const navRef = useRef<HTMLDivElement>(null);
+  const { thumbWidth, thumbLeft, scrollable } = useHorizontalScrollProgress(navRef);
 
   useEffect(() => {
     if (!open) return;
@@ -76,7 +112,10 @@ export function MenuBrowserModal({
         <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
           {/* Category nav — horizontal chips on phone/tablet, scrollable sidebar on desktop */}
           <div className="shrink-0 border-b border-surface-border lg:h-full lg:w-60 lg:border-b-0 lg:border-r">
-            <div className="flex w-full snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-4 px-4 py-3 lg:h-full lg:w-auto lg:flex-col lg:snap-none lg:overflow-y-auto lg:overflow-x-visible lg:px-3 lg:py-4">
+            <div
+              ref={navRef}
+              className="flex w-full snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-4 px-4 pt-3 lg:h-full lg:w-auto lg:flex-col lg:snap-none lg:overflow-y-auto lg:overflow-x-visible lg:px-3 lg:py-4"
+            >
               {MENU_CATEGORIES.map((cat) => {
                 const count = selected.filter((s) => s.key.startsWith(`${cat.key}::`)).length;
                 const active = cat.key === activeCategory;
@@ -102,6 +141,18 @@ export function MenuBrowserModal({
                 );
               })}
             </div>
+            {/* Visible scroll indicator — mobile browsers don't render a
+                persistent styled scrollbar on touch-scrolled elements, so
+                this hand-drawn track/thumb makes it obvious more categories
+                are reachable by swiping. */}
+            {scrollable && (
+              <div className="mx-4 mb-2 h-1.5 overflow-hidden rounded-full bg-surface-sunken lg:hidden">
+                <div
+                  className="h-full rounded-full bg-surface-border-strong"
+                  style={{ width: `${thumbWidth}%`, marginLeft: `${thumbLeft}%` }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Item grid */}
