@@ -93,11 +93,33 @@ function buildEmailHtml(b: BookingEmailData): string {
 }
 
 /**
+ * Sends one email via Resend and always logs the outcome. The Resend SDK
+ * does NOT throw on API-level failures (unverified domain, restricted
+ * sandbox recipient, bad key, etc.) — it resolves normally with
+ * `{ data: null, error: {...} }`. Awaiting the promise alone and only
+ * checking for a rejection (as an earlier version of this file did) means
+ * every one of those failures gets silently swallowed with no log at all.
+ * This checks `.error` explicitly so real failures are always visible in
+ * the server logs.
+ */
+async function sendOne(payload: Parameters<Resend["emails"]["send"]>[0], context: string) {
+  if (!resend) return;
+  try {
+    const { error } = await resend.emails.send(payload);
+    if (error) {
+      console.error(`[email] Resend rejected ${context}:`, error.message, `(${error.name})`);
+    }
+  } catch (err) {
+    console.error(`[email] Threw while sending ${context}:`, err);
+  }
+}
+
+/**
  * Sends a booking-confirmation email to the guest (if they gave an email —
  * it's optional) and a separate notification email to every address
  * configured in /admin/emails (restaurant owner/staff). Never throws — a
- * missing API key or a delivery failure is logged and swallowed so it can
- * never break booking creation itself.
+ * missing API key or a delivery failure is logged (see sendOne above) but
+ * never breaks booking creation itself.
  */
 export async function sendBookingConfirmationEmails(booking: BookingEmailData): Promise<void> {
   if (!resend) {
@@ -106,33 +128,36 @@ export async function sendBookingConfirmationEmails(booking: BookingEmailData): 
   }
 
   const html = buildEmailHtml(booking);
-  const sends: Promise<unknown>[] = [];
+  const sends: Promise<void>[] = [];
 
   if (booking.guestEmail) {
     sends.push(
-      resend.emails.send({
-        from: FROM_EMAIL,
-        to: booking.guestEmail,
-        subject: `Reservation Confirmed — ${booking.reference}`,
-        html,
-      })
+      sendOne(
+        {
+          from: FROM_EMAIL,
+          to: booking.guestEmail,
+          subject: `Reservation Confirmed — ${booking.reference}`,
+          html,
+        },
+        `guest confirmation to ${booking.guestEmail}`
+      )
     );
   }
 
   const owners = await prisma.notificationEmail.findMany({ select: { email: true } });
   if (owners.length > 0) {
     sends.push(
-      resend.emails.send({
-        from: FROM_EMAIL,
-        to: owners.map((o) => o.email),
-        subject: `New Booking — ${booking.reference}`,
-        html,
-      })
+      sendOne(
+        {
+          from: FROM_EMAIL,
+          to: owners.map((o) => o.email),
+          subject: `New Booking — ${booking.reference}`,
+          html,
+        },
+        `owner notification to ${owners.map((o) => o.email).join(", ")}`
+      )
     );
   }
 
-  const results = await Promise.allSettled(sends);
-  for (const r of results) {
-    if (r.status === "rejected") console.error("[email] Failed to send booking email:", r.reason);
-  }
+  await Promise.all(sends);
 }
