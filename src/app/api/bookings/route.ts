@@ -112,7 +112,7 @@ export async function POST(req: Request) {
       );
       if (!table) {
         throw new BookingRequestError(
-          "Sorry, we don't have a table large enough for that party size at this location.",
+          "This location isn't set up to accept bookings yet. Please try another location.",
           409
         );
       }

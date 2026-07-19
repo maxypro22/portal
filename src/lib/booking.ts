@@ -11,23 +11,33 @@ export const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "COMPLETED"] as const;
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
 /**
- * Auto-assign the best-fit table for a party: the smallest active table at
- * the location that seats `partySize`. Guests choose their own preferred
- * time freely (no slot/availability restriction) — a table is still
- * attached to every booking for internal record-keeping, but its assignment
- * is purely nominal and never blocks a reservation. Returns null only when
- * the location has no table large enough for the party at all.
+ * Auto-assign a table for a party: the smallest active table that seats
+ * `partySize`, or — for a party larger than any single table — the largest
+ * active table available, best-effort. Guests choose their own preferred
+ * time freely (no slot/availability restriction), and party size never
+ * blocks a reservation either; a table is attached to every booking purely
+ * for internal record-keeping. Returns null only if the location has no
+ * active table at all.
  */
 export async function pickAvailableTable(
   params: { locationId: string; partySize: number },
   db: DbClient
 ): Promise<{ id: string; number: number; capacity: number; section: string } | null> {
-  const table = await db.table.findFirst({
+  const fitting = await db.table.findFirst({
     where: { locationId: params.locationId, isActive: true, capacity: { gte: params.partySize } },
     orderBy: { capacity: "asc" },
     select: { id: true, number: true, capacity: true, section: true },
   });
-  return table ?? null;
+  if (fitting) return fitting;
+
+  // No single table seats the whole party — fall back to the largest
+  // active table rather than rejecting the booking.
+  const largest = await db.table.findFirst({
+    where: { locationId: params.locationId, isActive: true },
+    orderBy: { capacity: "desc" },
+    select: { id: true, number: true, capacity: true, section: true },
+  });
+  return largest ?? null;
 }
 
 /**
