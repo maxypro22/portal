@@ -143,8 +143,11 @@ export function BookingWizard() {
     }
   }
 
-  // Success screen replaces the wizard entirely.
-  if (result) return <SuccessScreen result={result} partySize={partySize} />;
+  // Success screen replaces the wizard entirely. Uses the wizard's own
+  // dateKey (the exact "YYYY-MM-DD" the guest picked) rather than parsing
+  // result.date — the server returns a full ISO datetime string there,
+  // which isn't the plain date key fromDateKey() expects.
+  if (result) return <SuccessScreen result={result} partySize={partySize} dateKey={dateKey!} />;
 
   return (
     <div className="mx-auto max-w-4xl pb-24 lg:pb-0">
@@ -1005,9 +1008,11 @@ function ConfirmStep({
 function SuccessScreen({
   result,
   partySize,
+  dateKey,
 }: {
   result: BookingResult;
   partySize: number;
+  dateKey: string;
 }) {
   return (
     <div className="mx-auto max-w-2xl animate-scale-in text-center">
@@ -1031,8 +1036,8 @@ function SuccessScreen({
         <dl className="mx-auto mt-8 grid max-w-md gap-3 text-left text-sm">
           <SummaryRow label="Location" value={result.location.name} />
           <SummaryRow label="Guests" value={`${partySize}`} />
-          <SummaryRow label="Date" value={formatLongDate(fromDateKey(result.date))} />
-          <SummaryRow label="Time" value={`${formatTime12h(result.timeSlot)} (2 hrs)`} />
+          <SummaryRow label="Date" value={formatLongDate(fromDateKey(dateKey))} />
+          <SummaryRow label="Time" value={formatTime12h(result.timeSlot)} />
         </dl>
 
         <div className="mt-9 flex flex-wrap justify-center gap-3">
