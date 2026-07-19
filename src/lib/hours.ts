@@ -1,5 +1,10 @@
 import { prisma } from "./prisma";
-import { WORKING_HOURS as DEFAULT_HOURS, type DayHours, type HoursMap } from "./constants";
+import {
+  SLOT_INTERVAL_MINUTES as DEFAULT_SLOT_INTERVAL_MINUTES,
+  WORKING_HOURS as DEFAULT_HOURS,
+  type DayHours,
+  type HoursMap,
+} from "./constants";
 
 export type { DayHours, HoursMap };
 
@@ -22,4 +27,14 @@ export async function getWorkingHours(): Promise<HoursMap> {
     }
   }
   return map;
+}
+
+/**
+ * How far apart guest-facing time slots are spaced (editable from
+ * /admin/hours). Falls back to the hardcoded default if BookingSettings
+ * hasn't been migrated/seeded yet (see prisma/add-booking-settings.sql).
+ */
+export async function getSlotIntervalMinutes(): Promise<number> {
+  const row = await prisma.bookingSettings.findUnique({ where: { id: "default" } });
+  return row?.slotIntervalMinutes ?? DEFAULT_SLOT_INTERVAL_MINUTES;
 }

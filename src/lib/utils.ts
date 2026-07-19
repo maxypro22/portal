@@ -56,22 +56,24 @@ export function formatTime12h(time: string): string {
 }
 
 /**
- * Generate 30-min booking start slots for a given weekday, honoring working
- * hours. Last seating is LAST_SEATING_BUFFER_MINUTES before close — the
- * guest's 2-hour dining window may run past closing time, which is normal
- * restaurant practice, not a bug. Purely a display/selection list — every
- * slot returned here is bookable by any number of guests (no availability/
- * overlap restriction).
+ * Generate booking start slots for a given weekday, honoring working hours,
+ * spaced `intervalMinutes` apart (admin-editable from /admin/hours — see
+ * getSlotIntervalMinutes() in lib/hours.ts). Last seating is
+ * LAST_SEATING_BUFFER_MINUTES before close — the guest's 2-hour dining
+ * window may run past closing time, which is normal restaurant practice,
+ * not a bug. Purely a display/selection list — every slot returned here is
+ * bookable by any number of guests (no availability/overlap restriction).
  */
 export function generateSlotsForDay(
   dayOfWeek: number,
-  hoursMap: HoursMap = WORKING_HOURS
+  hoursMap: HoursMap = WORKING_HOURS,
+  intervalMinutes: number = SLOT_INTERVAL_MINUTES
 ): string[] {
   const hours = hoursMap[dayOfWeek];
   if (!hours) return [];
   const slots: string[] = [];
   const lastStart = hours.close - LAST_SEATING_BUFFER_MINUTES;
-  for (let m = hours.open; m <= lastStart; m += SLOT_INTERVAL_MINUTES) {
+  for (let m = hours.open; m <= lastStart; m += intervalMinutes) {
     slots.push(minutesToTime(m));
   }
   return slots;

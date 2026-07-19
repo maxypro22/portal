@@ -123,6 +123,17 @@ model WorkingHours {
 }
 
 // -----------------------------------------------------------------------------
+// Global booking settings — currently just the time-slot interval shown to
+// guests on /book (e.g. every 15/30/60 minutes). Single row, fixed id.
+// Editable from /admin/hours.
+// -----------------------------------------------------------------------------
+model BookingSettings {
+  id                  String   @id @default("default")
+  slotIntervalMinutes Int      @default(30)
+  updatedAt           DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
 // Owner/staff addresses that receive a copy of every booking confirmation
 // email (in addition to the guest's own email, when they provide one).
 // Managed from /admin/emails.

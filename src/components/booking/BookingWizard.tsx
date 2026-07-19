@@ -398,6 +398,14 @@ function GuestsDateTimeStep({
       .catch(() => setHoursByDay([]));
   }, []);
 
+  // How far apart time slots are shown (admin-editable from /admin/hours).
+  const [slotInterval, setSlotInterval] = useState(30);
+  useEffect(() => {
+    apiFetch<{ slotIntervalMinutes: number }>("/api/booking-settings")
+      .then((s) => setSlotInterval(s.slotIntervalMinutes))
+      .catch(() => setSlotInterval(30));
+  }, []);
+
   const closedDays = useMemo(
     () => new Set(hoursByDay.filter((d) => !d.isOpen).map((d) => d.dayOfWeek)),
     [hoursByDay]
@@ -407,10 +415,12 @@ function GuestsDateTimeStep({
     const dow = fromDateKey(dateKey).getDay();
     const dayHours = hoursByDay.find((d) => d.dayOfWeek === dow && d.isOpen);
     if (!dayHours) return [];
-    return generateSlotsForDay(dow, {
-      [dow]: { open: dayHours.openMinutes, close: dayHours.closeMinutes },
-    });
-  }, [dateKey, hoursByDay]);
+    return generateSlotsForDay(
+      dow,
+      { [dow]: { open: dayHours.openMinutes, close: dayHours.closeMinutes } },
+      slotInterval
+    );
+  }, [dateKey, hoursByDay, slotInterval]);
 
   // Close the open panel on outside click.
   useEffect(() => {
