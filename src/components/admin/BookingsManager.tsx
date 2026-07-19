@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
   Search,
@@ -53,6 +53,38 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
   const [editing, setEditing] = useState<Booking | null>(null);
   const [deleting, setDeleting] = useState<Booking | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Table is wide — the browser's own horizontal scrollbar only ever sits at
+  // the bottom of the scroll area, below every row. This mirrors it as a
+  // thin, always-visible strip right above the header too, kept in sync
+  // with the real scroll position in both directions.
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const [tableScrollWidth, setTableScrollWidth] = useState(0);
+  const syncingScroll = useRef(false);
+
+  useEffect(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    const update = () => setTableScrollWidth(el.scrollWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [data]);
+
+  const handleTopScroll = () => {
+    if (syncingScroll.current || !tableScrollRef.current || !topScrollRef.current) return;
+    syncingScroll.current = true;
+    tableScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+    syncingScroll.current = false;
+  };
+  const handleTableScroll = () => {
+    if (syncingScroll.current || !tableScrollRef.current || !topScrollRef.current) return;
+    syncingScroll.current = true;
+    topScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
+    syncingScroll.current = false;
+  };
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
@@ -202,7 +234,16 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
             className="m-4"
           />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div
+              ref={topScrollRef}
+              onScroll={handleTopScroll}
+              className="overflow-x-auto overflow-y-hidden border-b border-surface-border"
+              style={{ height: 14 }}
+            >
+              <div style={{ width: tableScrollWidth, height: 1 }} />
+            </div>
+            <div className="overflow-x-auto" ref={tableScrollRef} onScroll={handleTableScroll}>
             <table className="w-full min-w-[980px] text-left text-sm">
               <thead>
                 <tr className="border-b border-surface-border text-xs uppercase tracking-wide text-content-dim">
@@ -260,7 +301,8 @@ export function BookingsManager({ locations }: { locations: LocationLite[] }) {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
 
         {/* Pagination */}
