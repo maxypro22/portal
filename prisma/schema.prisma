@@ -121,3 +121,15 @@ model WorkingHours {
   closeMinutes Int      @default(1440) // 12:00 AM
   updatedAt    DateTime @updatedAt
 }
+
+// -----------------------------------------------------------------------------
+// Owner/staff addresses that receive a copy of every booking confirmation
+// email (in addition to the guest's own email, when they provide one).
+// Managed from /admin/emails.
+// -----------------------------------------------------------------------------
+model NotificationEmail {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  label     String? // optional friendly name, e.g. "Owner", "Manager"
+  createdAt DateTime @default(now())
+}

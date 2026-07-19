@@ -11,6 +11,7 @@ import {
   Clock,
   MapPin,
   UserCog,
+  Mail,
   LogOut,
   ExternalLink,
   Menu,
@@ -27,6 +28,7 @@ const NAV = [
   { label: "Working Hours", href: "/admin/hours", icon: Clock },
   { label: "Locations", href: "/admin/locations", icon: MapPin },
   { label: "Users", href: "/admin/users", icon: UserCog },
+  { label: "Send Emails", href: "/admin/emails", icon: Mail },
 ];
 
 export function Sidebar({ userName }: { userName?: string | null }) {

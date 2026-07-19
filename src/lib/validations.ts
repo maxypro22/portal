@@ -117,3 +117,10 @@ export const changePasswordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").max(72),
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+// --- Admin: booking notification emails --------------------------------------
+export const notificationEmailSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+  label: z.string().trim().max(60).optional().or(z.literal("")),
+});
+export type NotificationEmailInput = z.infer<typeof notificationEmailSchema>;

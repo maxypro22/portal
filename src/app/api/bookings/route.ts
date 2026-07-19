@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { apiOk, apiError, handleRouteError, requireAdmin } from "@/lib/api";
 import { createBookingSchema } from "@/lib/validations";
 import { BookingRequestError, pickAvailableTable, runSerializable } from "@/lib/booking";
+import { sendBookingConfirmationEmails } from "@/lib/email";
 import { getWorkingHours } from "@/lib/hours";
 import { DEFAULT_DURATION_MINUTES, LAST_SEATING_BUFFER_MINUTES } from "@/lib/constants";
 import { fromDateKey, generateReference, qatarNow, timeToMinutes, toDateKey } from "@/lib/utils";
@@ -148,6 +149,20 @@ export async function POST(req: Request) {
       }
 
       throw new BookingRequestError("Could not generate a booking reference. Try again.", 500);
+    });
+
+    // Never lets an email failure affect the booking response — see
+    // sendBookingConfirmationEmails' own try/catch handling.
+    await sendBookingConfirmationEmails({
+      reference: booking.reference,
+      guestName: booking.guestName,
+      guestEmail: booking.guestEmail,
+      guestPhone: booking.guestPhone,
+      partySize: booking.partySize,
+      date: booking.date,
+      timeSlot: booking.timeSlot,
+      specialRequests: booking.specialRequests,
+      location: booking.location,
     });
 
     return apiOk(booking, 201);
