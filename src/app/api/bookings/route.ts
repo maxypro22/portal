@@ -4,9 +4,9 @@ import { apiOk, apiError, handleRouteError, requireAdmin } from "@/lib/api";
 import { createBookingSchema } from "@/lib/validations";
 import { BookingRequestError, pickAvailableTable, runSerializable } from "@/lib/booking";
 import { sendBookingConfirmationEmails } from "@/lib/email";
-import { getWorkingHours } from "@/lib/hours";
-import { DEFAULT_DURATION_MINUTES, LAST_SEATING_BUFFER_MINUTES } from "@/lib/constants";
-import { fromDateKey, generateReference, qatarNow, timeToMinutes, toDateKey } from "@/lib/utils";
+import { getLastSeatingBufferMinutes, getWorkingHours } from "@/lib/hours";
+import { DEFAULT_DURATION_MINUTES } from "@/lib/constants";
+import { fromDateKey, generateReference, qatarNow, timeToMinutes } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -66,13 +66,14 @@ export async function GET(req: Request) {
 
 /**
  * POST /api/bookings — PUBLIC create.
- * Guests enter their own preferred time freely — there's no slot list and
- * no availability/overlap restriction. The only time constraint is that it
- * falls within working hours, with last seating LAST_SEATING_BUFFER_MINUTES
- * before close (the 2-hour dining window may run past closing time — normal
- * restaurant practice), and isn't in the past. A table is still auto-
- * assigned (smallest fitting one) for internal record-keeping, but its
- * assignment never blocks the reservation.
+ * Guests enter their own preferred time freely — there's no slot list, no
+ * availability/overlap restriction, and no "already passed" restriction on
+ * today's times either (guests can pick any time of day, no limit). The
+ * only time constraint is that it falls within working hours, with last
+ * seating getLastSeatingBufferMinutes() before close (the 2-hour dining
+ * window may run past closing time — normal restaurant practice). A table
+ * is still auto-assigned (smallest fitting one) for internal record-
+ * keeping, but its assignment never blocks the reservation.
  */
 export async function POST(req: Request) {
   try {
@@ -80,24 +81,21 @@ export async function POST(req: Request) {
     const input = createBookingSchema.parse(body);
 
     const day = fromDateKey(input.date);
-    const hoursMap = await getWorkingHours();
+    const [hoursMap, lastSeatingBufferMinutes] = await Promise.all([
+      getWorkingHours(),
+      getLastSeatingBufferMinutes(),
+    ]);
     const dayHours = hoursMap[day.getDay()];
     if (!dayHours) {
       return apiError("We're closed on the selected date.", 400);
     }
     const requestedMinutes = timeToMinutes(input.timeSlot);
-    const lastStart = dayHours.close - LAST_SEATING_BUFFER_MINUTES;
+    const lastStart = dayHours.close - lastSeatingBufferMinutes;
     if (requestedMinutes < dayHours.open || requestedMinutes > lastStart) {
       return apiError("Selected time is outside our working hours.", 400);
     }
 
     const now = qatarNow();
-    if (toDateKey(now) === input.date) {
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
-      if (timeToMinutes(input.timeSlot) <= nowMinutes) {
-        return apiError("Selected time has already passed.", 400);
-      }
-    }
     if (day < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
       return apiError("Cannot book a date in the past.", 400);
     }

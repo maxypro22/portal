@@ -123,14 +123,17 @@ model WorkingHours {
 }
 
 // -----------------------------------------------------------------------------
-// Global booking settings — currently just the time-slot interval shown to
-// guests on /book (e.g. every 15/30/60 minutes). Single row, fixed id.
-// Editable from /admin/hours.
+// Global booking settings — currently just how close to closing time the
+// last bookable slot can be (e.g. 10 minutes before close). Regular slot
+// spacing stays fixed (SLOT_INTERVAL_MINUTES) and is not affected by this —
+// only the very last slot of the day is adjusted to sit exactly this many
+// minutes before close, even if that doesn't land on the regular grid.
+// Single row, fixed id. Editable from /admin/hours.
 // -----------------------------------------------------------------------------
 model BookingSettings {
-  id                  String   @id @default("default")
-  slotIntervalMinutes Int      @default(30)
-  updatedAt           DateTime @updatedAt
+  id                       String   @id @default("default")
+  lastSeatingBufferMinutes Int      @default(30)
+  updatedAt                DateTime @updatedAt
 }
 
 // -----------------------------------------------------------------------------

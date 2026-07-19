@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import {
-  SLOT_INTERVAL_MINUTES as DEFAULT_SLOT_INTERVAL_MINUTES,
+  LAST_SEATING_BUFFER_MINUTES as DEFAULT_LAST_SEATING_BUFFER_MINUTES,
   WORKING_HOURS as DEFAULT_HOURS,
   type DayHours,
   type HoursMap,
@@ -30,11 +30,13 @@ export async function getWorkingHours(): Promise<HoursMap> {
 }
 
 /**
- * How far apart guest-facing time slots are spaced (editable from
- * /admin/hours). Falls back to the hardcoded default if BookingSettings
- * hasn't been migrated/seeded yet (see prisma/add-booking-settings.sql).
+ * How close to closing time the last bookable slot can be (editable from
+ * /admin/hours) — e.g. 10 minutes means the last slot sits exactly 10
+ * minutes before close, regardless of the regular slot grid. Falls back to
+ * the hardcoded default if BookingSettings hasn't been migrated/seeded yet
+ * (see prisma/add-booking-settings.sql).
  */
-export async function getSlotIntervalMinutes(): Promise<number> {
+export async function getLastSeatingBufferMinutes(): Promise<number> {
   const row = await prisma.bookingSettings.findUnique({ where: { id: "default" } });
-  return row?.slotIntervalMinutes ?? DEFAULT_SLOT_INTERVAL_MINUTES;
+  return row?.lastSeatingBufferMinutes ?? DEFAULT_LAST_SEATING_BUFFER_MINUTES;
 }

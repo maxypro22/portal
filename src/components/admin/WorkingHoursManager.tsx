@@ -15,20 +15,20 @@ type DayRow = {
   closeMinutes: number;
 };
 
-const INTERVAL_OPTIONS = [10, 15, 20, 30, 45, 60, 90, 120];
+const LAST_SEATING_OPTIONS = [0, 5, 10, 15, 20, 30, 45, 60];
 
 export function WorkingHoursManager() {
   const [days, setDays] = useState<DayRow[] | null>(null);
-  const [slotInterval, setSlotInterval] = useState<number | null>(null);
+  const [lastSeatingBuffer, setLastSeatingBuffer] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     apiFetch<DayRow[]>("/api/working-hours")
       .then(setDays)
       .catch((e) => toast.error(e instanceof Error ? e.message : "Failed to load working hours"));
-    apiFetch<{ slotIntervalMinutes: number }>("/api/booking-settings")
-      .then((s) => setSlotInterval(s.slotIntervalMinutes))
-      .catch(() => setSlotInterval(30));
+    apiFetch<{ lastSeatingBufferMinutes: number }>("/api/booking-settings")
+      .then((s) => setLastSeatingBuffer(s.lastSeatingBufferMinutes))
+      .catch(() => setLastSeatingBuffer(30));
   }, []);
 
   function updateDay(dayOfWeek: number, patch: Partial<DayRow>) {
@@ -51,10 +51,10 @@ export function WorkingHoursManager() {
             })),
           }),
         }),
-        slotInterval != null
+        lastSeatingBuffer != null
           ? apiFetch("/api/booking-settings", {
               method: "PATCH",
-              body: JSON.stringify({ slotIntervalMinutes: slotInterval }),
+              body: JSON.stringify({ lastSeatingBufferMinutes: lastSeatingBuffer }),
             })
           : Promise.resolve(),
       ]);
@@ -72,7 +72,7 @@ export function WorkingHoursManager() {
     }
   }
 
-  if (!days || slotInterval == null) {
+  if (!days || lastSeatingBuffer == null) {
     return (
       <div className="space-y-3">
         {Array.from({ length: 7 }).map((_, i) => (
@@ -90,18 +90,21 @@ export function WorkingHoursManager() {
             <Timer className="h-4.5 w-4.5" />
           </span>
           <div>
-            <p className="font-serif text-base font-semibold text-content">Booking Time Slot Interval</p>
-            <p className="text-xs text-content-dim">How far apart guests can pick a time on /book.</p>
+            <p className="font-serif text-base font-semibold text-content">Last Seating Before Closing</p>
+            <p className="text-xs text-content-dim">
+              How close to closing time the last bookable slot sits — doesn&apos;t change the
+              spacing between the other times.
+            </p>
           </div>
         </div>
         <select
-          value={slotInterval}
-          onChange={(e) => setSlotInterval(Number(e.target.value))}
+          value={lastSeatingBuffer}
+          onChange={(e) => setLastSeatingBuffer(Number(e.target.value))}
           className="input-base w-auto py-2"
         >
-          {INTERVAL_OPTIONS.map((m) => (
+          {LAST_SEATING_OPTIONS.map((m) => (
             <option key={m} value={m}>
-              Every {m} minutes
+              {m === 0 ? "Right up to closing time" : `${m} minutes before close`}
             </option>
           ))}
         </select>

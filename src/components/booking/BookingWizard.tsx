@@ -42,7 +42,6 @@ import {
   generateSlotsForDay,
   normalizeQatarPhone,
   qatarNow,
-  timeToMinutes,
   toDateKey,
 } from "@/lib/utils";
 
@@ -398,12 +397,13 @@ function GuestsDateTimeStep({
       .catch(() => setHoursByDay([]));
   }, []);
 
-  // How far apart time slots are shown (admin-editable from /admin/hours).
-  const [slotInterval, setSlotInterval] = useState(30);
+  // How close to closing time the last slot sits (admin-editable from
+  // /admin/hours) — regular slot spacing is fixed and unaffected by this.
+  const [lastSeatingBuffer, setLastSeatingBuffer] = useState(30);
   useEffect(() => {
-    apiFetch<{ slotIntervalMinutes: number }>("/api/booking-settings")
-      .then((s) => setSlotInterval(s.slotIntervalMinutes))
-      .catch(() => setSlotInterval(30));
+    apiFetch<{ lastSeatingBufferMinutes: number }>("/api/booking-settings")
+      .then((s) => setLastSeatingBuffer(s.lastSeatingBufferMinutes))
+      .catch(() => setLastSeatingBuffer(30));
   }, []);
 
   const closedDays = useMemo(
@@ -418,9 +418,9 @@ function GuestsDateTimeStep({
     return generateSlotsForDay(
       dow,
       { [dow]: { open: dayHours.openMinutes, close: dayHours.closeMinutes } },
-      slotInterval
+      lastSeatingBuffer
     );
-  }, [dateKey, hoursByDay, slotInterval]);
+  }, [dateKey, hoursByDay, lastSeatingBuffer]);
 
   // Close the open panel on outside click.
   useEffect(() => {
@@ -483,7 +483,6 @@ function GuestsDateTimeStep({
             )}
             {open === "time" && dateKey && (
               <TimesList
-                dateKey={dateKey}
                 slots={daySlots}
                 value={timeSlot}
                 onSelect={(t) => { onPickTime(t); setOpen(null); }}
@@ -494,7 +493,7 @@ function GuestsDateTimeStep({
       </div>
 
       <p className="mt-4 text-xs text-content-dim/70">
-        Struck-through times have already passed today. Any other time can be booked.
+        Pick any time — every slot stays open no matter how many other guests book it.
       </p>
     </div>
   );
@@ -569,17 +568,15 @@ function GuestsList({
 
 /**
  * Scrollable time-slot list, generated from working hours — tap to select.
- * There's no availability restriction: every future slot stays selectable
- * no matter how many other guests have already picked it. Only slots that
- * have already passed today are struck through and disabled.
+ * No restriction of any kind on which time can be picked: every slot stays
+ * selectable regardless of the current time or how many other guests have
+ * already picked it.
  */
 function TimesList({
-  dateKey,
   slots,
   value,
   onSelect,
 }: {
-  dateKey: string;
   slots: string[];
   value: string | null;
   onSelect: (t: string) => void;
@@ -592,37 +589,20 @@ function TimesList({
     );
   }
 
-  const now = qatarNow();
-  const isToday = dateKey === toDateKey(now);
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const isPast = (time: string) => isToday && timeToMinutes(time) <= nowMinutes;
-
-  if (slots.every(isPast)) {
-    return (
-      <div className="p-4">
-        <EmptyState title="No times left today" description="Please choose another date." />
-      </div>
-    );
-  }
-
   return (
     <div className="max-h-72 overflow-y-auto py-2">
       {slots.map((time) => {
-        const past = isPast(time);
         const active = value === time;
         return (
           <button
             key={time}
             type="button"
-            disabled={past}
             onClick={() => onSelect(time)}
             className={cn(
               "flex w-full items-center justify-center px-4 py-2.5 text-sm font-medium transition-colors",
               active
                 ? "bg-gold-gradient text-brand-950"
-                : past
-                  ? "cursor-not-allowed text-content-dim/40 line-through"
-                  : "text-content-muted hover:bg-surface-sunken hover:text-content"
+                : "text-content-muted hover:bg-surface-sunken hover:text-content"
             )}
           >
             {formatTime12h(time)}

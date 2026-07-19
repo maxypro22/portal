@@ -56,26 +56,34 @@ export function formatTime12h(time: string): string {
 }
 
 /**
- * Generate booking start slots for a given weekday, honoring working hours,
- * spaced `intervalMinutes` apart (admin-editable from /admin/hours — see
- * getSlotIntervalMinutes() in lib/hours.ts). Last seating is
- * LAST_SEATING_BUFFER_MINUTES before close — the guest's 2-hour dining
- * window may run past closing time, which is normal restaurant practice,
- * not a bug. Purely a display/selection list — every slot returned here is
- * bookable by any number of guests (no availability/overlap restriction).
+ * Generate booking start slots for a given weekday, honoring working hours.
+ * Regular slots are spaced a fixed SLOT_INTERVAL_MINUTES apart and are NOT
+ * affected by `lastSeatingBufferMinutes` (admin-editable from /admin/hours
+ * — see getLastSeatingBufferMinutes() in lib/hours.ts) — that setting only
+ * controls the very last slot of the day, which sits exactly that many
+ * minutes before close even when it doesn't land on the regular grid (e.g.
+ * a 10-minute buffer with a 30-min grid and a midnight close gives
+ * ...,23:00, 23:30, 23:50 — the 23:50 is appended, not grid-aligned). The
+ * guest's 2-hour dining window may run past closing time, which is normal
+ * restaurant practice, not a bug. Purely a display/selection list — every
+ * slot returned here is bookable by any number of guests (no availability/
+ * overlap restriction).
  */
 export function generateSlotsForDay(
   dayOfWeek: number,
   hoursMap: HoursMap = WORKING_HOURS,
-  intervalMinutes: number = SLOT_INTERVAL_MINUTES
+  lastSeatingBufferMinutes: number = LAST_SEATING_BUFFER_MINUTES
 ): string[] {
   const hours = hoursMap[dayOfWeek];
   if (!hours) return [];
+  const lastStart = hours.close - lastSeatingBufferMinutes;
+  if (lastStart < hours.open) return [];
+
   const slots: string[] = [];
-  const lastStart = hours.close - LAST_SEATING_BUFFER_MINUTES;
-  for (let m = hours.open; m <= lastStart; m += intervalMinutes) {
+  for (let m = hours.open; m < lastStart; m += SLOT_INTERVAL_MINUTES) {
     slots.push(minutesToTime(m));
   }
+  slots.push(minutesToTime(lastStart));
   return slots;
 }
 
