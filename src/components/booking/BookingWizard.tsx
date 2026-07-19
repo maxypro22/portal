@@ -32,12 +32,7 @@ import { Skeleton, EmptyState } from "@/components/ui/Primitives";
 import { apiFetch } from "@/lib/fetcher";
 import { guestDetailsSchema, type GuestDetailsInput } from "@/lib/validations";
 import { parseSelectedMoodItems } from "@/lib/menuData";
-import {
-  DEFAULT_DURATION_MINUTES,
-  MAX_ADVANCE_BOOKING_DAYS,
-  MAX_PARTY_SIZE,
-  MIN_PARTY_SIZE,
-} from "@/lib/constants";
+import { MAX_ADVANCE_BOOKING_DAYS, MAX_PARTY_SIZE, MIN_PARTY_SIZE } from "@/lib/constants";
 import {
   buildMonthGrid,
   cn,
@@ -409,7 +404,7 @@ function GuestsDateTimeStep({
     const dow = fromDateKey(dateKey).getDay();
     const dayHours = hoursByDay.find((d) => d.dayOfWeek === dow && d.isOpen);
     if (!dayHours) return [];
-    return generateSlotsForDay(dow, DEFAULT_DURATION_MINUTES, {
+    return generateSlotsForDay(dow, {
       [dow]: { open: dayHours.openMinutes, close: dayHours.closeMinutes },
     });
   }, [dateKey, hoursByDay]);

@@ -57,8 +57,12 @@ export const TABLE_SHAPES = ["round", "square", "rect", "booth"] as const;
 export type TableShape = (typeof TABLE_SHAPES)[number];
 
 // Booking rules ---------------------------------------------------------------
-export const DEFAULT_DURATION_MINUTES = 120; // 2-hour dining window
+export const DEFAULT_DURATION_MINUTES = 120; // 2-hour dining window (informational — stored on the booking)
 export const SLOT_INTERVAL_MINUTES = 30;
+// Last seating: a guest can book right up to this many minutes before
+// closing, even though the 2-hour dining window would run past close —
+// standard "last seating" restaurant practice, not a hard capacity limit.
+export const LAST_SEATING_BUFFER_MINUTES = 30;
 export const MIN_PARTY_SIZE = 1;
 export const MAX_PARTY_SIZE = 15;
 /** How far ahead guests can book — the calendar disables dates beyond this. */

@@ -4,7 +4,7 @@ import { apiOk, apiError, handleRouteError, requireAdmin } from "@/lib/api";
 import { createBookingSchema } from "@/lib/validations";
 import { BookingRequestError, pickAvailableTable, runSerializable } from "@/lib/booking";
 import { getWorkingHours } from "@/lib/hours";
-import { DEFAULT_DURATION_MINUTES } from "@/lib/constants";
+import { DEFAULT_DURATION_MINUTES, LAST_SEATING_BUFFER_MINUTES } from "@/lib/constants";
 import { fromDateKey, generateReference, qatarNow, timeToMinutes, toDateKey } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -67,9 +67,10 @@ export async function GET(req: Request) {
  * POST /api/bookings — PUBLIC create.
  * Guests enter their own preferred time freely — there's no slot list and
  * no availability/overlap restriction. The only time constraint is that it
- * falls within the restaurant's working hours (with room for the full
- * dining window before close) and isn't in the past. A table is still
- * auto-assigned (smallest fitting one) for internal record-keeping, but its
+ * falls within working hours, with last seating LAST_SEATING_BUFFER_MINUTES
+ * before close (the 2-hour dining window may run past closing time — normal
+ * restaurant practice), and isn't in the past. A table is still auto-
+ * assigned (smallest fitting one) for internal record-keeping, but its
  * assignment never blocks the reservation.
  */
 export async function POST(req: Request) {
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
       return apiError("We're closed on the selected date.", 400);
     }
     const requestedMinutes = timeToMinutes(input.timeSlot);
-    const lastStart = dayHours.close - DEFAULT_DURATION_MINUTES;
+    const lastStart = dayHours.close - LAST_SEATING_BUFFER_MINUTES;
     if (requestedMinutes < dayHours.open || requestedMinutes > lastStart) {
       return apiError("Selected time is outside our working hours.", 400);
     }
