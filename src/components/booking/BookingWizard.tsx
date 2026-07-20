@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { WizardProgress } from "./WizardProgress";
 import { MenuBrowserModal, type SelectedMoodItem } from "./MenuBrowserModal";
+import { PrivacyPolicyModal } from "./PrivacyPolicyModal";
 import { Skeleton, EmptyState } from "@/components/ui/Primitives";
 import { apiFetch } from "@/lib/fetcher";
 import { guestDetailsSchema, type GuestDetailsInput } from "@/lib/validations";
@@ -80,6 +81,7 @@ export function BookingWizard() {
   const [dateKey, setDateKey] = useState<string | null>(null);
   const [timeSlot, setTimeSlot] = useState<string | null>(null);
   const [details, setDetails] = useState<GuestDetailsInput | null>(null);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   // Result
   const [result, setResult] = useState<BookingResult | null>(null);
@@ -182,6 +184,8 @@ export function BookingWizard() {
             dateKey={dateKey}
             timeSlot={timeSlot}
             details={details}
+            privacyAccepted={privacyAccepted}
+            onPrivacyAcceptedChange={setPrivacyAccepted}
           />
         )}
       </div>
@@ -212,7 +216,7 @@ export function BookingWizard() {
           <button
             type="button"
             onClick={submitBooking}
-            disabled={submitting}
+            disabled={submitting || !privacyAccepted}
             className="btn-gold justify-center px-6 py-2.5 text-sm lg:flex-none"
           >
             {submitting ? (
@@ -910,13 +914,19 @@ function ConfirmStep({
   dateKey,
   timeSlot,
   details,
+  privacyAccepted,
+  onPrivacyAcceptedChange,
 }: {
   location: Location;
   partySize: number;
   dateKey: string;
   timeSlot: string;
   details: GuestDetailsInput;
+  privacyAccepted: boolean;
+  onPrivacyAcceptedChange: (v: boolean) => void;
 }) {
+  const [policyOpen, setPolicyOpen] = useState(false);
+
   const rows = [
     { icon: <MapPin className="h-4 w-4" />, label: "Location", value: location.name },
     { icon: <Users className="h-4 w-4" />, label: "Guests", value: `${partySize}` },
@@ -990,6 +1000,27 @@ function ConfirmStep({
         A table will be assigned automatically to fit your party. Your reservation will be held as{" "}
         <span className="text-status-pending">Pending</span> until confirmed by our team.
       </p>
+
+      <label className="mt-4 flex items-start justify-center gap-2.5 text-center text-xs text-content-muted">
+        <input
+          type="checkbox"
+          checked={privacyAccepted}
+          onChange={(e) => onPrivacyAcceptedChange(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-surface-border text-gold accent-gold focus:ring-gold"
+        />
+        <span>
+          I have read the{" "}
+          <button
+            type="button"
+            onClick={() => setPolicyOpen(true)}
+            className="font-semibold text-gold underline underline-offset-2 hover:text-gold/80"
+          >
+            Privacy Policy
+          </button>
+        </span>
+      </label>
+
+      <PrivacyPolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />
     </div>
   );
 }
